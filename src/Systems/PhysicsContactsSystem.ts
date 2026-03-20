@@ -70,9 +70,11 @@ export class PhysicsContactsSystem extends System {
         // pair.collision.normal points from bodyA -> bodyB (Matter docs)
         // Y+ is downward in canvas coords.
         const ny = pair.collision.normal.y;
+        const nearVertical = Math.abs(ny) > 0.45;
+        if (!nearVertical) continue;
 
-        if (aId && ny > 0.5) this.incGround(aId);
-        if (bId && ny < -0.5) this.incGround(bId);
+        if (aId) this.incGround(aId);
+        if (bId) this.incGround(bId);
       }
     });
 
@@ -83,8 +85,11 @@ export class PhysicsContactsSystem extends System {
         if (!aId && !bId) continue;
 
         const ny = pair.collision.normal.y;
-        if (aId && ny > 0.5) this.decGround(aId);
-        if (bId && ny < -0.5) this.decGround(bId);
+        const nearVertical = Math.abs(ny) > 0.45;
+        if (!nearVertical) continue;
+
+        if (aId) this.decGround(aId);
+        if (bId) this.decGround(bId);
       }
     });
 

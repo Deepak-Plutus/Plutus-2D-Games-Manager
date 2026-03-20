@@ -13,6 +13,10 @@ import { PhysicsBodyComponent } from '../Components/PhysicsBodyComponent';
  * - Else: ensures VelocityComponent and sets velocity.x
  */
 export class PatrolSystem extends System {
+  // JSON patrol speed is treated as a design value; this maps it to runtime velocity.
+  private readonly patrolSpeedScalePhysics = 3.5;
+  private readonly patrolSpeedScaleKinematic = 120;
+
   update(_dt: number, world: World): void {
     const state = world.getResource<{ current?: string }>('state');
     if (state?.current === 'paused') return;
@@ -26,9 +30,9 @@ export class PatrolSystem extends System {
       if (transform.position.x <= minX) patrol.dir = 1;
       if (transform.position.x >= maxX) patrol.dir = -1;
 
-      const targetVx = patrol.dir * patrol.speed;
-
       const phys = world.getComponent(entity, PhysicsBodyComponent);
+      const targetVx = patrol.dir * patrol.speed * (phys ? this.patrolSpeedScalePhysics : this.patrolSpeedScaleKinematic);
+
       if (phys) {
         Body.setVelocity(phys.body, { x: targetVx, y: phys.body.velocity.y });
       } else {

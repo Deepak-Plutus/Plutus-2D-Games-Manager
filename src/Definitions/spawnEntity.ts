@@ -1,17 +1,27 @@
-import type * as PIXI from 'pixi.js';
-import { TransformComponent } from '../Components/TransformComponent';
-import { World } from '../Core/World';
-import type { EntityBase } from '../Entities/EntityBase';
-import type { EntityDefinition } from './GameDefinition';
-import { componentRegistry, entityRegistry, prefabRegistry } from './registries';
+import type * as PIXI from "pixi.js";
+import { TransformComponent } from "../Components/TransformComponent";
+import { World } from "../Core/World";
+import type { EntityBase } from "../Entities/EntityBase";
+import type { EntityDefinition } from "./GameDefinition";
+import {
+  componentRegistry,
+  entityRegistry,
+  prefabRegistry,
+} from "./registries";
 
-export function spawnEntity(def: EntityDefinition, world: World, app: PIXI.Application): EntityBase | undefined {
+export function spawnEntity(
+  def: EntityDefinition,
+  world: World,
+  app: PIXI.Application,
+): EntityBase | undefined {
   let entity: EntityBase | undefined;
 
   if (def.entityType) {
     const factory = entityRegistry[def.entityType];
     if (!factory) {
-      console.warn(`[entityType] Unknown entityType "${def.entityType}" for "${def.id}"`);
+      console.warn(
+        `[entityType] Unknown entityType "${def.entityType}" for "${def.id}"`,
+      );
     } else {
       entity = factory(app, def.props);
     }
@@ -32,14 +42,38 @@ export function spawnEntity(def: EntityDefinition, world: World, app: PIXI.Appli
   // Default transform
   const transform = new TransformComponent();
   const pos = def.pos ?? [0, 0];
-  transform.position.x = typeof pos[0] === 'number' ? pos[0] : 0;
-  transform.position.y = typeof pos[1] === 'number' ? pos[1] : 0;
+  transform.position.x = typeof pos[0] === "number" ? pos[0] : 0;
+  transform.position.y = typeof pos[1] === "number" ? pos[1] : 0;
+
+  // Keep sizing in Transform scale (so PixiSyncSystem preserves it every frame).
+  let sx = entity.view.scale.x;
+  let sy = entity.view.scale.y;
+
+  if (typeof def.width === "number" && entity.view.width > 0) {
+    sx *= def.width / entity.view.width;
+  }
+  if (typeof def.height === "number" && entity.view.height > 0) {
+    sy *= def.height / entity.view.height;
+  }
+
+  if (typeof def.scale === "number") {
+    sx *= def.scale;
+    sy *= def.scale;
+  } else if (Array.isArray(def.scale) && def.scale.length >= 2) {
+    const scaleX = typeof def.scale[0] === "number" ? def.scale[0] : 1;
+    const scaleY = typeof def.scale[1] === "number" ? def.scale[1] : 1;
+    sx *= scaleX;
+    sy *= scaleY;
+  }
+
+  transform.scale.x = sx;
+  transform.scale.y = sy;
   world.addComponent(entity, transform);
 
   // JSON components
   for (const c of def.components ?? []) {
     const type = (c as any)?.type;
-    if (typeof type !== 'string') continue;
+    if (typeof type !== "string") continue;
     const factory = componentRegistry[type];
     if (!factory) {
       console.warn(`[component] Unknown component "${type}" on "${def.id}"`, c);
@@ -50,4 +84,3 @@ export function spawnEntity(def: EntityDefinition, world: World, app: PIXI.Appli
 
   return entity;
 }
-

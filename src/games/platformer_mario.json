@@ -2,29 +2,142 @@
   "genre": "platformer",
   "engine": "pixi_2d",
   "world": {
-    "gravity": [0, 9.8],
-    "bounds": [0, 0, 5000, 1080],
-    "background": "parallax_hills_2d"
+    "gravity": [0, 10],
+    "bounds": [0, 0, 2400, 1080],
+    "background": "parallax_hills_2d",
+    "physics": {
+      "gravity": { "x": 0, "y": 10, "scale": 0.001 },
+      "createFloorFromBounds": false
+    },
+    "camera": {
+      "zoom": 2.4,
+      "follow_entity_id": "hero",
+      "follow_right_only": false,
+      "lock_y": true,
+      "y": 460
+    }
   },
   "entities": [
+    {
+      "id": "hud_stats",
+      "entityType": "Rect",
+      "pos": [0, 0],
+      "props": { "width": 1, "height": 1, "fill": 0, "alpha": 0, "radius": 0 },
+      "components": [
+        {
+          "type": "HudStats",
+          "targetId": "hero",
+          "showHealth": true,
+          "showCoins": true
+        }
+      ]
+    },
     {
       "id": "hero",
       "prefab": "sprite_hero_2d",
       "pos": [100, 500],
+      "width": 56,
+      "height": 56,
       "components": [
-        { "type": "PlatformerController", "jump_force": 15, "speed": 1 },
-        { "type": "AnimationState", "idle": "hero_idle", "run": "hero_run" }
+        {
+          "type": "PlatformerController",
+          "jump_force": 15,
+          "speed": 1,
+          "coyoteTimeMs": 120,
+          "jumpBufferMs": 120
+        },
+        { "type": "AnimationState", "idle": "hero_idle", "run": "hero_run" },
+        { "type": "Health", "hp": 100, "maxHp": 100 }
       ]
     },
     {
       "id": "enemy_slime",
       "prefab": "enemy_sprite_2d",
       "pos": [800, 500],
+      "width": 48,
+      "height": 48,
+      "scale": 1,
       "components": [
         { "type": "PatrolBehavior", "range": 200, "speed": 2 },
         { "type": "CollisionHarm", "damage": 10 }
       ]
+    },
+    {
+      "id": "ground_main",
+      "entityType": "Rect",
+      "pos": [1200, 610],
+      "props": { "width": 2400, "height": 60, "fill": 3422539, "radius": 0 },
+      "components": [
+        {
+          "type": "PhysicsBody",
+          "shape": "box",
+          "width": 2400,
+          "height": 60,
+          "isStatic": true
+        }
+      ]
+    },
+    {
+      "id": "moving_platform_1",
+      "entityType": "Rect",
+      "pos": [1100, 480],
+      "props": { "width": 220, "height": 20, "fill": 5592405, "radius": 0 },
+      "components": [
+        {
+          "type": "MovingPlatform",
+          "axis": "x",
+          "range": 240,
+          "speed": 90,
+          "width": 220,
+          "height": 20
+        }
+      ]
+    },
+    {
+      "id": "spring_platform_1",
+      "entityType": "Rect",
+      "pos": [1850, 555],
+      "props": { "width": 90, "height": 30, "fill": 16763904, "radius": 0 },
+      "components": [
+        {
+          "type": "PhysicsBody",
+          "shape": "box",
+          "width": 90,
+          "height": 30,
+          "isStatic": true
+        },
+        { "type": "SpringPlatform", "jumpBoost": 30 }
+      ]
+    },
+    {
+      "id": "powerup_spawner",
+      "entityType": "Rect",
+      "pos": [1350, 440],
+      "props": { "width": 1, "height": 1, "fill": 0, "alpha": 0, "radius": 0 },
+      "components": [
+        {
+          "type": "PlatformSpawner",
+          "cooldownMs": 8000,
+          "maxAlive": 2,
+          "spawnedPrefix": "powerup",
+          "template": {
+            "id": "powerup_item",
+            "entityType": "Circle",
+            "pos": [1350, 400],
+            "props": { "radius": 14, "fill": 16776960 },
+            "components": [
+              {
+                "type": "PhysicsBody",
+                "shape": "circle",
+                "radius": 14,
+                "isStatic": true,
+                "isSensor": true
+              },
+              { "type": "CoinCollectible", "value": 1 }
+            ]
+          }
+        }
+      ]
     }
   ]
 }
-

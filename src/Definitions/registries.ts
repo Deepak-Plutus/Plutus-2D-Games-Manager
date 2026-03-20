@@ -16,6 +16,11 @@ import { CollisionHarmComponent } from '../Components/CollisionHarmComponent';
 import { HealthComponent } from '../Components/HealthComponent';
 import { PlatformerBehaviorComponent } from '../Components/PlatformerBehaviorComponent';
 import { TriggerZoneComponent } from '../Components/TriggerZoneComponent';
+import { MovingPlatformComponent } from '../Components/MovingPlatformComponent';
+import { SpringPlatformComponent } from '../Components/SpringPlatformComponent';
+import { PlatformSpawnerComponent } from '../Components/PlatformSpawnerComponent';
+import { CoinCollectibleComponent } from '../Components/CoinCollectibleComponent';
+import { HudStatsComponent } from '../Components/HudStatsComponent';
 import { TransformComponent } from '../Components/TransformComponent';
 import { VelocityComponent } from '../Components/VelocityComponent';
 import { Body, Bodies, World as MatterWorld, type IBodyDefinition, type IChamferableBodyDefinition } from 'matter-js';
@@ -43,8 +48,9 @@ export const entityRegistry: Record<string, EntityFactory> = {
     const width = typeof props?.width === 'number' ? props.width : 48;
     const height = typeof props?.height === 'number' ? props.height : 48;
     const fill = typeof props?.fill === 'number' ? props.fill : 0xffffff;
-    const radius = typeof props?.radius === 'number' ? props.radius : 10;
-    return new RectEntity({ width, height, fill, radius, anchor: { x: 0.5, y: 0.5 } });
+    const alpha = typeof props?.alpha === 'number' ? props.alpha : 1;
+    const radius = typeof props?.radius === 'number' ? props.radius : 0;
+    return new RectEntity({ width, height, fill, alpha, radius, anchor: { x: 0.5, y: 0.5 } });
   },
   Circle: (_app, props) => {
     const radius = typeof props?.radius === 'number' ? props.radius : 18;
@@ -128,14 +134,18 @@ export const componentRegistry: Record<string, ComponentFactory> = {
     // - `jump_force` is treated as jump impulse (force)
     const rawSpeed = typeof (data as any).speed === 'number' ? ((data as any).speed as number) : 7;
     // If JSON uses small Construct-like numbers (e.g. 5), scale to something visible in px/s.
-    const maxSpeedX = rawSpeed < 50 ? rawSpeed * 60 : rawSpeed;
+    // Use a smaller scaler so low JSON values feel controllable (Mario-like) without editing JSON.
+    const maxSpeedX = rawSpeed < 50 ? rawSpeed * 10 : rawSpeed;
 
     const rawJump = typeof (data as any).jump_force === 'number' ? ((data as any).jump_force as number) : 15;
-    const jumpImpulse = rawJump * 0.015;
+    const jumpImpulse = rawJump * 0.03;
     const accel = typeof (data as any).accel === 'number' ? ((data as any).accel as number) : undefined;
     const decel = typeof (data as any).decel === 'number' ? ((data as any).decel as number) : undefined;
     const airControl = typeof (data as any).airControl === 'number' ? ((data as any).airControl as number) : undefined;
     const jumpCutMultiplier = typeof (data as any).jumpCutMultiplier === 'number' ? ((data as any).jumpCutMultiplier as number) : undefined;
+    const coyoteTimeMs = typeof (data as any).coyoteTimeMs === 'number' ? ((data as any).coyoteTimeMs as number) : undefined;
+    const jumpBufferMs = typeof (data as any).jumpBufferMs === 'number' ? ((data as any).jumpBufferMs as number) : undefined;
+    const maxFallSpeed = typeof (data as any).maxFallSpeed === 'number' ? ((data as any).maxFallSpeed as number) : undefined;
 
     // Ensure a physics body exists so the behavior can actually move something.
     // This keeps your JSON minimal (Construct-style: behavior implies physics).
@@ -176,6 +186,9 @@ export const componentRegistry: Record<string, ComponentFactory> = {
         decel,
         airControl,
         jumpCutMultiplier,
+        coyoteTimeMs,
+        jumpBufferMs,
+        maxFallSpeed,
       }),
     );
   },
@@ -267,6 +280,73 @@ export const componentRegistry: Record<string, ComponentFactory> = {
     world.addComponent(entity, new TriggerZoneComponent({ once, tag, onEnter, onExit }));
   },
 
+  MovingPlatform: (world, entity, data) => {
+    const axis = (data.axis === 'y' ? 'y' : 'x') as 'x' | 'y';
+    const range = typeof data.range === 'number' ? data.range : 160;
+    const speed = typeof data.speed === 'number' ? data.speed : 80;
+    world.addComponent(entity, new MovingPlatformComponent({ axis, range, speed }));
+
+    // Moving platforms should participate in physics as kinematic-like static bodies.
+    const phys = world.getComponent(entity, PhysicsBodyComponent);
+    if (!phys) {
+      const physicsState = world.getResource<PhysicsState>(RES_PHYSICS);
+      if (!physicsState) return;
+      const t = world.getComponent(entity, TransformComponent);
+      const x = t?.position.x ?? 0;
+      const y = t?.position.y ?? 0;
+      const w =
+        typeof (data as any).width === 'number'
+          ? ((data as any).width as number)
+          : Number.isFinite(entity.view.width) && entity.view.width > 0
+            ? entity.view.width
+            : 96;
+      const h =
+        typeof (data as any).height === 'number'
+          ? ((data as any).height as number)
+          : Number.isFinite(entity.view.height) && entity.view.height > 0
+            ? entity.view.height
+            : 24;
+      const body = Bodies.rectangle(x, y, w, h, { isStatic: true, friction: 0.3, restitution: 0 });
+      (body as any).plugin = { ...(body as any).plugin, entityId: entity.id };
+      MatterWorld.add(physicsState.engine.world, body);
+      world.addComponent(entity, new PhysicsBodyComponent(body));
+    }
+  },
+
+  SpringPlatform: (world, entity, data) => {
+    const jumpBoost = typeof (data as any).jumpBoost === 'number' ? ((data as any).jumpBoost as number) : 14;
+    world.addComponent(entity, new SpringPlatformComponent({ jumpBoost }));
+  },
+
+  PlatformSpawner: (world, entity, data) => {
+    const cooldownMs = typeof (data as any).cooldownMs === 'number' ? ((data as any).cooldownMs as number) : 4000;
+    const maxAlive = typeof (data as any).maxAlive === 'number' ? ((data as any).maxAlive as number) : 3;
+    const spawnedPrefix =
+      typeof (data as any).spawnedPrefix === 'string' ? ((data as any).spawnedPrefix as string) : `${entity.name}_spawn`;
+    const template = (data as any).template;
+    world.addComponent(
+      entity,
+      new PlatformSpawnerComponent({
+        cooldownMs,
+        maxAlive,
+        spawnedPrefix,
+        template: template && typeof template === 'object' ? (template as any) : undefined,
+      }),
+    );
+  },
+
+  CoinCollectible: (world, entity, data) => {
+    const value = typeof (data as any).value === 'number' ? ((data as any).value as number) : 1;
+    world.addComponent(entity, new CoinCollectibleComponent({ value }));
+  },
+
+  HudStats: (world, entity, data) => {
+    const targetId = typeof (data as any).targetId === 'string' ? ((data as any).targetId as string) : 'hero';
+    const showHealth = typeof (data as any).showHealth === 'boolean' ? ((data as any).showHealth as boolean) : true;
+    const showCoins = typeof (data as any).showCoins === 'boolean' ? ((data as any).showCoins as boolean) : true;
+    world.addComponent(entity, new HudStatsComponent({ targetId, showHealth, showCoins }));
+  },
+
   AnimationState: (world, entity, data) => {
     const idle = typeof (data as any).idle === 'string' ? ((data as any).idle as string) : undefined;
     const run = typeof (data as any).run === 'string' ? ((data as any).run as string) : undefined;
@@ -277,6 +357,28 @@ export const componentRegistry: Record<string, ComponentFactory> = {
     const range = typeof (data as any).range === 'number' ? ((data as any).range as number) : 200;
     const speed = typeof (data as any).speed === 'number' ? ((data as any).speed as number) : 2;
     world.addComponent(entity, new PatrolBehaviorComponent({ range, speed }));
+
+    // Ensure patrol actors participate in physics so they stay on ground.
+    if (!world.getComponent(entity, PhysicsBodyComponent)) {
+      const phys = world.getResource<PhysicsState>(RES_PHYSICS);
+      if (phys) {
+        const t = world.getComponent(entity, TransformComponent);
+        const x = t?.position.x ?? 0;
+        const y = t?.position.y ?? 0;
+        const w = Number.isFinite(entity.view.width) && entity.view.width > 0 ? entity.view.width : 44;
+        const h = Number.isFinite(entity.view.height) && entity.view.height > 0 ? entity.view.height : 44;
+
+        const body = Bodies.rectangle(x, y, w, h, {
+          friction: 0.01,
+          restitution: 0,
+          isStatic: false,
+        });
+        Body.setInertia(body, Infinity);
+        (body as any).plugin = { ...(body as any).plugin, entityId: entity.id };
+        MatterWorld.add(phys.engine.world, body);
+        world.addComponent(entity, new PhysicsBodyComponent(body));
+      }
+    }
   },
 
   CollisionHarm: (world, entity, data) => {

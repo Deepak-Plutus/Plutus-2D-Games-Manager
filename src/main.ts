@@ -9,10 +9,7 @@ const root = document.querySelector<HTMLDivElement>('#app');
 if (!root) throw new Error('Missing #app');
 
 root.innerHTML = `
-  <div id="hud">
-    <div class="title">Plutus JSON → Game (Pixi + ECS)</div>
-    <div class="help">Move with <b>WASD</b> or <b>Arrow Keys</b></div>
-  </div>
+  <div id="hud"></div>
   <div id="game"></div>
 `;
 

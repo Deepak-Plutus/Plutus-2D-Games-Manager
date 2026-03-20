@@ -4,6 +4,8 @@ import type { World } from '../Core/World';
 import type { EntityBase } from '../Entities/EntityBase';
 import type { EntityDefinition } from '../Definitions/GameDefinition';
 import { spawnEntity } from '../Definitions/spawnEntity';
+import { PhysicsBodyComponent } from '../Components/PhysicsBodyComponent';
+import { PhysicsSystem } from './PhysicsSystem';
 import { RES_PIXI_APP } from './PixiAppSystem';
 
 export type EntitiesResource = {
@@ -121,8 +123,14 @@ export class EntitiesManagementSystem extends System {
   }
 
   private despawn(world: World, id: number): void {
-    const ent = world.removeEntity(id);
+    const ent = world.getEntity(id);
     if (!ent) return;
+
+    // Remove Matter body before removing ECS entity/components.
+    const phys = world.getComponent(ent, PhysicsBodyComponent);
+    if (phys) PhysicsSystem.removeBody(world, phys.body);
+
+    world.removeEntity(id);
 
     // Remove from stage
     if (ent.view.parent) ent.view.parent.removeChild(ent.view);

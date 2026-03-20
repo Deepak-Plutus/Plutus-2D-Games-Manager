@@ -9,6 +9,12 @@ export type EntityDefinition = {
    */
   prefab?: string;
   pos?: [number, number] | number[];
+  width?: number;
+  height?: number;
+  /**
+   * Uniform scale number OR [x, y] scale tuple.
+   */
+  scale?: number | [number, number] | number[];
   props?: Record<string, unknown>;
   components?: Array<Record<string, unknown> & { type: string }>;
 };
