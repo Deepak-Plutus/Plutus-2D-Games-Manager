@@ -1,0 +1,63 @@
+{
+  "genre": "platformer",
+  "engine": "pixi_2d",
+  "world": {
+    "gravity": [0, 9.8],
+    "bounds": [0, 0, 5000, 1080],
+    "background": "parallax_hills_2d",
+    "physics": {
+      "gravity": { "x": 0, "y": 1, "scale": 0.001 }
+    },
+    "audio": {
+      "masterVolume": 0.8,
+      "sfxVolume": 1,
+      "musicVolume": 0.6,
+      "sounds": [{ "id": "blip", "type": "tone", "kind": "sfx", "freq": 880, "durationMs": 80 }]
+    }
+  },
+  "entities": [
+    {
+      "id": "hero",
+      "prefab": "sprite_hero_2d",
+      "pos": [200, 250],
+      "components": [
+        { "type": "PhysicsBody", "shape": "box", "width": 48, "height": 48, "friction": 0.01, "restitution": 0, "fixedRotation": true },
+        { "type": "Grounded" },
+        { "type": "PhysicsController", "mode": "platformer", "moveSpeed": 7, "jumpImpulse": 0.22, "maxSpeedX": 9, "airControl": 0.5 }
+      ]
+    },
+    {
+      "id": "enemy_slime",
+      "prefab": "enemy_sprite_2d",
+      "pos": [500, 350],
+      "components": [
+        { "type": "PatrolBehavior", "range": 200, "speed": 2 },
+        { "type": "PhysicsBody", "shape": "box", "width": 44, "height": 44, "isStatic": true }
+      ]
+    },
+    {
+      "id": "ground",
+      "entityType": "Rect",
+      "pos": [540, 650],
+      "props": { "width": 900, "height": 40, "fill": 3487029, "radius": 6 },
+      "components": [{ "type": "PhysicsBody", "shape": "box", "width": 900, "height": 40, "isStatic": true }]
+    },
+    {
+      "id": "goal_zone",
+      "entityType": "Rect",
+      "pos": [820, 600],
+      "props": { "width": 80, "height": 80, "fill": 5635925, "radius": 10 },
+      "components": [
+        { "type": "PhysicsBody", "shape": "box", "width": 80, "height": 80, "isStatic": true, "isSensor": true },
+        { "type": "TriggerZone", "once": true, "onEnter": [{ "type": "PlaySound", "soundId": "blip" }] }
+      ]
+    },
+    {
+      "id": "ui_start",
+      "entityType": "Button",
+      "pos": [160, 70],
+      "props": { "label": "Start", "width": 120, "height": 40 }
+    }
+  ]
+}
+

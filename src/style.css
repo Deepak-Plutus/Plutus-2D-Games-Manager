@@ -1,0 +1,53 @@
+:root {
+  color-scheme: dark;
+  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  background: #070b16;
+  color: #e5e7eb;
+}
+
+#app {
+  position: relative;
+  height: 100%;
+}
+
+#game {
+  position: absolute;
+  inset: 0;
+}
+
+canvas {
+  display: block;
+}
+
+#hud {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 10;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  background: rgba(5, 8, 20, 0.65);
+  backdrop-filter: blur(6px);
+}
+
+#hud .title {
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  margin-bottom: 4px;
+}
+
+#hud .help {
+  font-size: 13px;
+  color: rgba(229, 231, 235, 0.8);
+}
+
+#hud b {
+  color: #fff;
+}

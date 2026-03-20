@@ -1,0 +1,30 @@
+{
+  "genre": "platformer",
+  "engine": "pixi_2d",
+  "world": {
+    "gravity": [0, 9.8],
+    "bounds": [0, 0, 5000, 1080],
+    "background": "parallax_hills_2d"
+  },
+  "entities": [
+    {
+      "id": "hero",
+      "prefab": "sprite_hero_2d",
+      "pos": [100, 500],
+      "components": [
+        { "type": "PlatformerController", "jump_force": 15, "speed": 1 },
+        { "type": "AnimationState", "idle": "hero_idle", "run": "hero_run" }
+      ]
+    },
+    {
+      "id": "enemy_slime",
+      "prefab": "enemy_sprite_2d",
+      "pos": [800, 500],
+      "components": [
+        { "type": "PatrolBehavior", "range": 200, "speed": 2 },
+        { "type": "CollisionHarm", "damage": 10 }
+      ]
+    }
+  ]
+}
+
