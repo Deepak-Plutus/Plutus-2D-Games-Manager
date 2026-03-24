@@ -4,6 +4,7 @@ import type { GameDefinition } from "./Definitions/GameDefinition";
 import { createRuntime } from "./games/createRuntime";
 import platformerDef from "./games/platformer_mario.json";
 import topdownShooterDef from "./games/topdown_shooter.json";
+import spaceBulletHellDef from "./games/spaceBulletHell.json";
 import {
   fetchGameConfigFromS3,
   getConfigUrlFromQueryParam,
@@ -14,16 +15,30 @@ if (!root) throw new Error("Missing #app");
 
 root.innerHTML = `
   <div id="hud">
-    <div class="title">Plutus JSON → Game (Pixi + ECS)</div>
-    <div class="help">Move with <b>WASD</b> or <b>Arrow Keys</b></div>
+    <div class="help">Move with <b>WASD</b> or <b>Arrow Keys</b> • Aim with <b>Mouse</b> • Shoot with <b>Click</b></div>
+    <div id="hud-stats" class="stats">HUD: --</div>
   </div>
-  <div id="game"></div>
+  <div id="game-shell">
+    <div id="game"></div>
+  </div>
 `;
 
 /**
  * Loads the game configuration from S3.
  */
-async function loadGameConfig(): Promise<GameDefinition | undefined> {
+function getLocalGameConfig(): GameDefinition {
+  const urlParams = new URLSearchParams(window.location.search);
+  const gameKey = urlParams.get("game");
+  const gameDefs: Record<string, GameDefinition> = {
+    platformer: platformerDef as GameDefinition,
+    shooter: topdownShooterDef as GameDefinition,
+    spaceBulletHell: spaceBulletHellDef as GameDefinition,
+  };
+
+  return gameDefs[gameKey ?? ""] ?? gameDefs.platformer;
+}
+
+async function loadGameConfig(): Promise<GameDefinition> {
   // Check if config URL is provided in query parameter
   const urlParams = new URLSearchParams(window.location.search);
   const hasConfigParam = urlParams.has("config");
@@ -48,36 +63,55 @@ async function loadGameConfig(): Promise<GameDefinition | undefined> {
       );
     }
   }
+
+  return getLocalGameConfig();
 }
 
 async function boot() {
+  // Select game by URL query:
+  // - ?game=platformer
+  // - ?game=shooter
+  const activeDef = await loadGameConfig();
+
+  applyViewportLayout(activeDef);
+
+  const gameHost = document.querySelector<HTMLDivElement>("#game");
+  if (!gameHost) throw new Error("Missing #game");
+
   const app = new PIXI.Application();
   await app.init({
-    resizeTo: window,
+    resizeTo: gameHost,
     background: "#0b1020",
     antialias: true,
   });
 
-  const gameHost = document.querySelector<HTMLDivElement>("#game");
-  if (!gameHost) throw new Error("Missing #game");
   gameHost.appendChild(app.canvas);
-
-  // Select game by URL query:
-  // - ?game=platformer
-  // - ?game=shooter
-  const gameConfig = await loadGameConfig();
-  if (!gameConfig) {
-    throw new Error("No game config found");
-  }
-  const gameKey = gameConfig.genre;
-  const gameDefs: Record<string, GameDefinition> = {
-    platformer: platformerDef as GameDefinition,
-    shooter: topdownShooterDef as GameDefinition,
-  };
-  const activeDef = gameDefs[gameKey ?? ""] ?? gameDefs.platformer;
 
   const runtime = createRuntime(app, activeDef);
   runtime.start();
 }
 
 void boot();
+
+function applyViewportLayout(def: GameDefinition): void {
+  const shell = document.querySelector<HTMLDivElement>("#game-shell");
+  if (!shell) return;
+
+  const viewport = (def.world as any)?.viewport;
+  const mode = typeof viewport?.mode === "string" ? viewport.mode : "fill";
+  if (mode !== "mobile") {
+    shell.classList.remove("mobile-shell");
+    shell.style.removeProperty("--game-view-width");
+    shell.style.removeProperty("--game-view-height");
+    return;
+  }
+
+  const width = Number(viewport?.width);
+  const height = Number(viewport?.height);
+  const safeWidth = Number.isFinite(width) && width > 0 ? width : 390;
+  const safeHeight = Number.isFinite(height) && height > 0 ? height : 844;
+
+  shell.classList.add("mobile-shell");
+  shell.style.setProperty("--game-view-width", `${safeWidth}`);
+  shell.style.setProperty("--game-view-height", `${safeHeight}`);
+}

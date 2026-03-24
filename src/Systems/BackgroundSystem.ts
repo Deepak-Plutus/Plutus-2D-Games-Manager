@@ -35,7 +35,7 @@ export class BackgroundSystem extends System {
     const bgId = def.world?.background;
     if (typeof bgId !== 'string' || bgId.length === 0) return;
 
-    const url = backgroundTextureUrl(bgId);
+    const url = resolveBackgroundUrl(bgId);
     if (!url) {
       console.warn(`[background] Unknown background "${bgId}"`);
       return;
@@ -71,5 +71,16 @@ export class BackgroundSystem extends System {
     const scale = Math.max(w / tw, h / th);
     sprite.scale.set(scale, scale);
   }
+}
+
+function resolveBackgroundUrl(background: string): string | undefined {
+  const resolved = backgroundTextureUrl(background);
+  if (resolved) return resolved;
+
+  // If JSON already provides a direct URL/path, use it as-is.
+  if (background.includes('/') || background.includes('.')) return background;
+
+  // Convention fallback: treat ID as file name under public/assets/backgrounds.
+  return `/assets/backgrounds/${background}.png`;
 }
 
