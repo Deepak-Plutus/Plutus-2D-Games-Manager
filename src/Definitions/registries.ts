@@ -94,9 +94,52 @@ export const prefabRegistry: Record<string, (app: PIXI.Application) => EntityBas
       height: 44,
       anchor: { x: 0.5, y: 0.5 },
     }),
-  spaceship_2d: () => new SpriteEntity({ tint: 0x22c55e, width: 40, height: 60, anchor: { x: 0.5, y: 0.5 } }),
+  spaceship_2d: () =>
+    new SpriteEntity({
+      texture: (() => {
+        const url = prefabTextureUrl('spaceship_2d');
+        return url ? PIXI.Texture.from(url) : PIXI.Texture.WHITE;
+      })(),
+      tint: 0xffffff,
+      width: 40,
+      height: 60,
+      anchor: { x: 0.5, y: 0.5 },
+    }),
   ufo_boss_2d: () => new SpriteEntity({ tint: 0xa855f7, width: 120, height: 60, anchor: { x: 0.5, y: 0.5 } }),
+  enemy_ship: () =>
+    new SpriteEntity({
+      texture: (() => {
+        const url = prefabTextureUrl('enemy_ship');
+        return url ? PIXI.Texture.from(url) : PIXI.Texture.WHITE;
+      })(),
+      tint: 0xffffff,
+      width: 36,
+      height: 36,
+      anchor: { x: 0.5, y: 0.5 },
+    }),
+  boss_enemy_ship: () =>
+    new SpriteEntity({
+      texture: (() => {
+        const url = prefabTextureUrl('boss_enemy_ship');
+        return url ? PIXI.Texture.from(url) : PIXI.Texture.WHITE;
+      })(),
+      tint: 0xffffff,
+      width: 96,
+      height: 54,
+      anchor: { x: 0.5, y: 0.5 },
+    }),
   topdown_human_2d: () => new SpriteEntity({ tint: 0xf59e0b, width: 36, height: 36, anchor: { x: 0.5, y: 0.5 } }),
+  shooter_player: () =>
+    new SpriteEntity({
+      texture: (() => {
+        const url = prefabTextureUrl('shooter_player');
+        return url ? PIXI.Texture.from(url) : PIXI.Texture.WHITE;
+      })(),
+      tint: 0xffffff,
+      width: 36,
+      height: 36,
+      anchor: { x: 0.5, y: 0.5 },
+    }),
   guard_2d: () => new SpriteEntity({ tint: 0x64748b, width: 36, height: 36, anchor: { x: 0.5, y: 0.5 } }),
 };
 
@@ -344,7 +387,11 @@ export const componentRegistry: Record<string, ComponentFactory> = {
     const targetId = typeof (data as any).targetId === 'string' ? ((data as any).targetId as string) : 'hero';
     const showHealth = typeof (data as any).showHealth === 'boolean' ? ((data as any).showHealth as boolean) : true;
     const showCoins = typeof (data as any).showCoins === 'boolean' ? ((data as any).showCoins as boolean) : true;
-    world.addComponent(entity, new HudStatsComponent({ targetId, showHealth, showCoins }));
+    const showEnemyCount =
+      typeof (data as any).showEnemyCount === 'boolean' ? ((data as any).showEnemyCount as boolean) : false;
+    const showScore = typeof (data as any).showScore === 'boolean' ? ((data as any).showScore as boolean) : false;
+    const enemyPrefix = typeof (data as any).enemyPrefix === 'string' ? ((data as any).enemyPrefix as string) : 'enemy_';
+    world.addComponent(entity, new HudStatsComponent({ targetId, showHealth, showCoins, showEnemyCount, showScore, enemyPrefix }));
   },
 
   AnimationState: (world, entity, data) => {

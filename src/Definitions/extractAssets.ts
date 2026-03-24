@@ -12,8 +12,20 @@ export function extractAssetUrls(def: GameDefinition): string[] {
 
   const bg = def.world?.background;
   if (typeof bg === 'string') {
-    const bgUrl = backgroundTextureUrl(bg);
+    const bgUrl = resolveBackgroundUrl(bg);
     if (bgUrl) urls.add(bgUrl);
+  }
+
+  // Optional world-level prefab IDs used by systems for dynamic spawns.
+  const worldEnemyPrefab = (def.world as any)?.enemyPrefab;
+  if (typeof worldEnemyPrefab === 'string') {
+    const url = prefabTextureUrl(worldEnemyPrefab);
+    if (url) urls.add(url);
+  }
+  const worldBossPrefab = (def.world as any)?.bossPrefab;
+  if (typeof worldBossPrefab === 'string') {
+    const url = prefabTextureUrl(worldBossPrefab);
+    if (url) urls.add(url);
   }
 
   for (const e of def.entities ?? []) {
@@ -27,5 +39,12 @@ export function extractAssetUrls(def: GameDefinition): string[] {
   }
 
   return [...urls];
+}
+
+function resolveBackgroundUrl(background: string): string | undefined {
+  const resolved = backgroundTextureUrl(background);
+  if (resolved) return resolved;
+  if (background.includes('/') || background.includes('.')) return background;
+  return `/assets/backgrounds/${background}.png`;
 }
 

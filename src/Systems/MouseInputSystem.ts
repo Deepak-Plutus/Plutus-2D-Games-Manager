@@ -125,6 +125,7 @@ export class MouseInputSystem extends System {
   };
 
   private attached = false;
+  private appRef?: PIXI.Application;
 
   update(dt: number, world: World): void {
     if (!world.getResource<MouseState>(RES_MOUSE)) {
@@ -160,6 +161,10 @@ export class MouseInputSystem extends System {
     this.pendingWorldDx = 0;
     this.pendingWorldDy = 0;
 
+    // Keep world mouse position in sync even when camera/stage moves
+    // (for example while player moves and camera follows).
+    this.refreshWorldPositionFromStage();
+
     // Fire button callbacks
     for (const b of this.state.justPressed) this.firePress(world, b);
     for (const b of this.state.justReleased) this.fireRelease(world, b);
@@ -192,8 +197,18 @@ export class MouseInputSystem extends System {
     const app = world.getResource<PIXI.Application>(RES_PIXI_APP);
     if (!app) return;
 
+    this.appRef = app;
     this.attach(app);
     this.attached = true;
+  }
+
+  private refreshWorldPositionFromStage(): void {
+    const app = this.appRef;
+    if (!app) return;
+    const global = new PIXI.Point(this.state.x, this.state.y);
+    const worldPt = app.stage.toLocal(global);
+    this.state.worldX = worldPt.x;
+    this.state.worldY = worldPt.y;
   }
 
   private attach(app: PIXI.Application): void {

@@ -23,6 +23,11 @@ export type GameDefinition = {
   genre: string;
   engine: 'pixi_2d' | string;
   world?: Record<string, unknown>;
+  /**
+   * Optional system toggles by system singleton key / registry key.
+   * If omitted, defaults are used by BaseGameRuntime.
+   */
+  systems?: Record<string, boolean>;
   entities: EntityDefinition[];
 };
 

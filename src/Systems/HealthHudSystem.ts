@@ -5,6 +5,8 @@ import { HudStatsComponent } from '../Components/HudStatsComponent';
 import type { GameDefinition } from '../Definitions/GameDefinition';
 import { RES_GAME_DEF } from './LoadingSystem';
 import { RES_COINS, type CoinsState } from './CoinCollectionSystem';
+import { RES_SHOOTER_STATS, type ShooterStats } from './ShooterCombatSystem';
+import { RES_SPACE_BULLET_HELL_STATS, type SpaceBulletHellStats } from './SpaceBulletHellSystem';
 
 /**
  * HealthHudSystem
@@ -15,6 +17,9 @@ export class HealthHudSystem extends System {
   private mounted = false;
   private showHealth = true;
   private showCoins = true;
+  private showEnemyCount = false;
+  private showScore = false;
+  private enemyPrefix = 'enemy_';
 
   get singletonKey(): string {
     return 'HealthHudSystem';
@@ -23,8 +28,8 @@ export class HealthHudSystem extends System {
   update(_dt: number, world: World): void {
     if (!this.mounted) this.mount(world);
 
-    const hud = document.querySelector<HTMLDivElement>('#hud');
-    if (!hud) return;
+    const statsHost = document.querySelector<HTMLDivElement>('#hud-stats');
+    if (!statsHost) return;
 
     for (const [hudEntity] of world.query(HudStatsComponent)) {
       const cfg = world.getComponent(hudEntity, HudStatsComponent);
@@ -32,6 +37,9 @@ export class HealthHudSystem extends System {
       this.targetId = cfg.targetId;
       this.showHealth = cfg.showHealth;
       this.showCoins = cfg.showCoins;
+      this.showEnemyCount = cfg.showEnemyCount;
+      this.showScore = cfg.showScore;
+      this.enemyPrefix = cfg.enemyPrefix;
       break;
     }
 
@@ -40,17 +48,39 @@ export class HealthHudSystem extends System {
       if (e.name !== this.targetId) continue;
       const hp = world.getComponent(e, HealthComponent);
       if (hp && this.showHealth) {
-        parts.push(`Health: ${Math.round(hp.hp)} / ${Math.round(hp.maxHp)}`);
+        parts.push(
+          `<span class="chip chip-health"><span class="label">Health</span><span class="value">${Math.round(hp.hp)} / ${Math.round(hp.maxHp)}</span></span>`,
+        );
       }
       break;
     }
 
     if (this.showCoins) {
       const coins = world.getResource<CoinsState>(RES_COINS);
-      parts.push(`Coins: ${coins?.total ?? 0}`);
+      parts.push(`<span class="chip chip-coins"><span class="label">Coins</span><span class="value">${coins?.total ?? 0}</span></span>`);
     }
 
-    hud.textContent = parts.length > 0 ? parts.join('   |   ') : 'HUD: --';
+    if (this.showEnemyCount) {
+      const shooter = world.getResource<ShooterStats>(RES_SHOOTER_STATS);
+      if (shooter) {
+        parts.push(
+          `<span class="chip chip-enemy"><span class="label">Enemies Killed</span><span class="value">${shooter.kills}</span></span>`,
+        );
+      } else {
+        let enemies = 0;
+        for (const e of world.allEntities()) {
+          if (e.name.startsWith(this.enemyPrefix) && world.getComponent(e, HealthComponent)) enemies += 1;
+        }
+        parts.push(`<span class="chip chip-enemy"><span class="label">Enemies</span><span class="value">${enemies}</span></span>`);
+      }
+    }
+
+    if (this.showScore) {
+      const score = world.getResource<SpaceBulletHellStats>(RES_SPACE_BULLET_HELL_STATS);
+      parts.push(`<span class="chip chip-score"><span class="label">Score</span><span class="value">${score?.score ?? 0}</span></span>`);
+    }
+
+    statsHost.innerHTML = parts.length > 0 ? parts.join('') : 'HUD: --';
   }
 
   private mount(world: World): void {
@@ -59,7 +89,12 @@ export class HealthHudSystem extends System {
     if (typeof followId === 'string' && followId.length > 0) this.targetId = followId;
 
     const hud = document.querySelector<HTMLDivElement>('#hud');
-    if (hud) hud.textContent = 'HUD: --';
+    if (hud) {
+      hud.classList.remove('hud-platformer', 'hud-shooter');
+      hud.classList.add(def?.genre === 'shoot_em_up' ? 'hud-shooter' : 'hud-platformer');
+    }
+    const statsHost = document.querySelector<HTMLDivElement>('#hud-stats');
+    if (statsHost) statsHost.textContent = 'HUD: --';
     this.mounted = true;
   }
 }

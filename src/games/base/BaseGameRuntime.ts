@@ -33,6 +33,9 @@ import { CoinCollectionSystem } from "../../Systems/CoinCollectionSystem";
 import { MovementSystem } from "../../Systems/MovementSystem";
 import { PixiSyncSystem } from "../../Systems/PixiSyncSystem";
 import { CameraFollowSystem } from "../../Systems/CameraFollowSystem";
+import { ShooterCombatSystem } from "../../Systems/ShooterCombatSystem";
+import { EntityHealthBarSystem } from "../../Systems/EntityHealthBarSystem";
+import { SpaceBulletHellSystem } from "../../Systems/SpaceBulletHellSystem";
 
 /**
  * BaseGameRuntime
@@ -156,33 +159,50 @@ export class BaseGameRuntime {
   }
 
   protected registerDefaultSystems(world: World): void {
-    world.addSystem(this.createPixiAppSystem());
-    world.addSystem(this.createStateManagementSystem());
-    world.addSystem(this.createPhysicsSystem());
-    world.addSystem(this.createPhysicsContactsSystem());
-    world.addSystem(this.createTriggerSystem());
-    world.addSystem(this.createLoadingSystem());
-    world.addSystem(this.createBackgroundSystem());
-    world.addSystem(this.createEntitiesManagementSystem());
-    world.addSystem(this.createAudioSystem());
-    world.addSystem(this.createInputSystem());
-    world.addSystem(this.createMouseInputSystem());
-    world.addSystem(this.createTouchInputSystem());
-    world.addSystem(this.createKeyboardInputSystem());
-    world.addSystem(this.createPhysicsMovementSystem());
-    world.addSystem(this.createPlatformerBehaviorSystem());
-    world.addSystem(this.createPatrolSystem());
-    world.addSystem(this.createAnimationSystem());
-    world.addSystem(this.createCollisionHarmSystem());
-    world.addSystem(this.createHealthSystem());
-    world.addSystem(this.createHealthHudSystem());
-    world.addSystem(this.createMovingPlatformSystem());
-    world.addSystem(this.createSpringPlatformSystem());
-    world.addSystem(this.createPlatformSpawnerSystem());
-    world.addSystem(this.createCoinCollectionSystem());
-    world.addSystem(this.createMovementSystem());
-    world.addSystem(this.createCameraFollowSystem());
-    world.addSystem(this.createPixiSyncSystem());
+    const systemFactories: Array<{ key: string; enabledByDefault: boolean; add: () => void }> = [
+      { key: "PixiAppSystem", enabledByDefault: true, add: () => world.addSystem(this.createPixiAppSystem()) },
+      { key: "StateManagementSystem", enabledByDefault: true, add: () => world.addSystem(this.createStateManagementSystem()) },
+      { key: "PhysicsSystem", enabledByDefault: true, add: () => world.addSystem(this.createPhysicsSystem()) },
+      { key: "PhysicsContactsSystem", enabledByDefault: true, add: () => world.addSystem(this.createPhysicsContactsSystem()) },
+      { key: "TriggerSystem", enabledByDefault: true, add: () => world.addSystem(this.createTriggerSystem()) },
+      { key: "LoadingSystem", enabledByDefault: true, add: () => world.addSystem(this.createLoadingSystem()) },
+      { key: "BackgroundSystem", enabledByDefault: true, add: () => world.addSystem(this.createBackgroundSystem()) },
+      { key: "EntitiesManagementSystem", enabledByDefault: true, add: () => world.addSystem(this.createEntitiesManagementSystem()) },
+      { key: "AudioSystem", enabledByDefault: true, add: () => world.addSystem(this.createAudioSystem()) },
+      { key: "InputSystem", enabledByDefault: true, add: () => world.addSystem(this.createInputSystem()) },
+      { key: "MouseInputSystem", enabledByDefault: true, add: () => world.addSystem(this.createMouseInputSystem()) },
+      { key: "TouchInputSystem", enabledByDefault: true, add: () => world.addSystem(this.createTouchInputSystem()) },
+      { key: "KeyboardInputSystem", enabledByDefault: true, add: () => world.addSystem(this.createKeyboardInputSystem()) },
+      { key: "PhysicsMovementSystem", enabledByDefault: true, add: () => world.addSystem(this.createPhysicsMovementSystem()) },
+      { key: "PlatformerBehaviorSystem", enabledByDefault: true, add: () => world.addSystem(this.createPlatformerBehaviorSystem()) },
+      { key: "PatrolSystem", enabledByDefault: true, add: () => world.addSystem(this.createPatrolSystem()) },
+      { key: "AnimationSystem", enabledByDefault: true, add: () => world.addSystem(this.createAnimationSystem()) },
+      { key: "CollisionHarmSystem", enabledByDefault: true, add: () => world.addSystem(this.createCollisionHarmSystem()) },
+      { key: "HealthSystem", enabledByDefault: true, add: () => world.addSystem(this.createHealthSystem()) },
+      { key: "HealthHudSystem", enabledByDefault: true, add: () => world.addSystem(this.createHealthHudSystem()) },
+      { key: "MovingPlatformSystem", enabledByDefault: true, add: () => world.addSystem(this.createMovingPlatformSystem()) },
+      { key: "SpringPlatformSystem", enabledByDefault: true, add: () => world.addSystem(this.createSpringPlatformSystem()) },
+      { key: "PlatformSpawnerSystem", enabledByDefault: true, add: () => world.addSystem(this.createPlatformSpawnerSystem()) },
+      { key: "CoinCollectionSystem", enabledByDefault: true, add: () => world.addSystem(this.createCoinCollectionSystem()) },
+      { key: "MovementSystem", enabledByDefault: true, add: () => world.addSystem(this.createMovementSystem()) },
+      { key: "CameraFollowSystem", enabledByDefault: true, add: () => world.addSystem(this.createCameraFollowSystem()) },
+      { key: "PixiSyncSystem", enabledByDefault: true, add: () => world.addSystem(this.createPixiSyncSystem()) },
+      // Shooter-specific systems are opt-in through gameDef.systems.
+      { key: "ShooterCombatSystem", enabledByDefault: false, add: () => world.addSystem(new ShooterCombatSystem()) },
+      { key: "EntityHealthBarSystem", enabledByDefault: false, add: () => world.addSystem(new EntityHealthBarSystem()) },
+      { key: "SpaceBulletHellSystem", enabledByDefault: false, add: () => world.addSystem(new SpaceBulletHellSystem()) },
+    ];
+
+    for (const entry of systemFactories) {
+      if (this.isSystemEnabled(entry.key, entry.enabledByDefault)) {
+        entry.add();
+      }
+    }
+  }
+
+  private isSystemEnabled(key: string, enabledByDefault: boolean): boolean {
+    const raw = this.gameDef.systems?.[key];
+    return typeof raw === "boolean" ? raw : enabledByDefault;
   }
 
   private tryCallOnGameReady(world: World): void {
