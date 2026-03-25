@@ -52,7 +52,10 @@ export class SpringPlatformSystem extends System {
   private applyBounce(body: Body, boost: number): void {
     if (!body || body.isStatic || body.isSensor) return;
     // Stronger, deterministic spring jump.
-    Body.setVelocity(body, Vector.create(body.velocity.x, -Math.abs(boost)));
+    const spring = new SpringPlatformComponent({ jumpBoost: boost });
+    const vel = { x: body.velocity.x, y: body.velocity.y };
+    spring.bounce({ velocity: vel });
+    Body.setVelocity(body, Vector.create(vel.x, vel.y));
 
     const world = this.worldRef;
     if (!world) return;

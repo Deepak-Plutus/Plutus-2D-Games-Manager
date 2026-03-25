@@ -34,5 +34,30 @@ export class TransformComponent {
   set scale(value: Vec2) {
     this._scale = value;
   }
+
+  setPosition(x: number, y: number): void {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    this._position = { x, y };
+  }
+
+  translate(dx: number, dy: number): void {
+    if (!Number.isFinite(dx) || !Number.isFinite(dy)) return;
+    this._position = { x: this._position.x + dx, y: this._position.y + dy };
+  }
+
+  setRotation(angle: number): void {
+    if (!Number.isFinite(angle)) return;
+    this._rotation = angle;
+  }
+
+  setScale(x: number, y: number): void {
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return;
+    this._scale = { x, y };
+  }
+
+  getWorldPosition(): Vec2 {
+    // Without parent transform hierarchy in component data, local == world.
+    return { x: this._position.x, y: this._position.y };
+  }
 }
 

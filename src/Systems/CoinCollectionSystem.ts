@@ -47,10 +47,16 @@ export class CoinCollectionSystem extends System {
     const coin = world.getComponent(coinEnt, CoinCollectibleComponent);
     if (!coin) return;
 
+    // Mirror doc-specified helpers first (side effects are safe even if
+    // CoinsState is what actually updates HUD).
+    coin.collect(collectorEnt);
+    coin.addScore(coin.value);
+
     const coins = world.getResource<CoinsState>(RES_COINS);
     if (coins) coins.total += Math.max(1, Math.floor(coin.value));
 
     const entities = world.getResource<EntitiesResource>(RES_ENTITIES);
     entities?.despawnById(coinEnt.id);
+    coin.destroy();
   }
 }

@@ -1,20 +1,27 @@
 {
   "genre": "platformer",
   "engine": "pixi_2d",
+  "systems": {
+    "CameraFollowSystem": false,
+    "CameraEntitySystem": {
+      "enabled": true,
+      "params": {
+        "followAxis": "xy"
+      }
+    },
+    "FollowTargetSystem": true,
+    "WanderSystem": true,
+    "LookAtSystem": true,
+    "StateMachineSystem": false,
+    "UiSystem": false
+  },
   "world": {
     "gravity": [0, 10],
-    "bounds": [0, 0, 2400, 1080],
+    "bounds": [0, 0, 3200, 1080],
     "background": "parallax_hills_2d",
     "physics": {
       "gravity": { "x": 0, "y": 10, "scale": 0.001 },
       "createFloorFromBounds": false
-    },
-    "camera": {
-      "zoom": 2.4,
-      "follow_entity_id": "hero",
-      "follow_right_only": false,
-      "lock_y": true,
-      "y": 460
     }
   },
   "entities": [
@@ -28,14 +35,56 @@
           "type": "HudStats",
           "targetId": "hero",
           "showHealth": true,
-          "showCoins": true
+          "showCoins": true,
+          "showEnemyCount": true,
+          "enemyPrefix": "enemy_"
         }
+      ]
+    },
+    {
+      "id": "objective_timer",
+      "entityType": "Timer",
+      "components": [
+        {
+          "type": "Timer",
+          "durationMs": 180000,
+          "active": true,
+          "repeat": false,
+          "onExpire": [
+            { "type": "SetResource", "key": "game_result", "value": "timeout" },
+            { "type": "TransitionState", "to": "paused", "reason": "time_up" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "camera_main",
+      "entityType": "Camera",
+      "components": [
+        {
+          "type": "Camera",
+          "mode": "follow",
+          "zoom": 2.2,
+          "followTarget": { "type": "entity", "id": "hero", "axis": "xy" },
+          "followOffset": { "x": 0, "y": -70 },
+          "follow_right_only": false,
+          "lock_y": false,
+          "bounds": [0, 0, 3200, 1080]
+        }
+      ]
+    },
+    {
+      "id": "hero_spawn",
+      "entityType": "PlayerSpawn",
+      "pos": [120, 510],
+      "components": [
+        { "type": "PlayerSpawn", "prefab": "sprite_hero_2d", "slot": 0 }
       ]
     },
     {
       "id": "hero",
       "prefab": "sprite_hero_2d",
-      "pos": [100, 500],
+      "pos": [120, 510],
       "width": 56,
       "height": 56,
       "components": [
@@ -44,35 +93,71 @@
           "jump_force": 15,
           "speed": 1,
           "coyoteTimeMs": 120,
-          "jumpBufferMs": 120
+          "jumpBufferMs": 120,
+          "maxFallSpeed": 18
         },
         { "type": "AnimationState", "idle": "hero_idle", "run": "hero_run" },
-        { "type": "Health", "hp": 100, "maxHp": 100 }
-      ]
-    },
-    {
-      "id": "enemy_slime",
-      "prefab": "enemy_sprite_2d",
-      "pos": [800, 500],
-      "width": 48,
-      "height": 48,
-      "scale": 1,
-      "components": [
-        { "type": "PatrolBehavior", "range": 200, "speed": 2 },
-        { "type": "CollisionHarm", "damage": 10 }
+        { "type": "Health", "hp": 100, "maxHp": 100 },
+        { "type": "Tag", "tags": ["player", "hero"] },
+        { "type": "ZIndex", "zIndex": 200 }
       ]
     },
     {
       "id": "ground_main",
       "entityType": "Rect",
-      "pos": [1200, 610],
-      "props": { "width": 2400, "height": 60, "fill": 3422539, "radius": 0 },
+      "pos": [1600, 620],
+      "props": { "width": 3200, "height": 70, "fill": 3422539, "radius": 0 },
       "components": [
         {
           "type": "PhysicsBody",
           "shape": "box",
-          "width": 2400,
-          "height": 60,
+          "width": 3200,
+          "height": 70,
+          "isStatic": true
+        }
+      ]
+    },
+    {
+      "id": "ledge_a",
+      "entityType": "Rect",
+      "pos": [700, 500],
+      "props": { "width": 260, "height": 24, "fill": 4149685, "radius": 0 },
+      "components": [
+        {
+          "type": "PhysicsBody",
+          "shape": "box",
+          "width": 260,
+          "height": 24,
+          "isStatic": true
+        }
+      ]
+    },
+    {
+      "id": "ledge_b",
+      "entityType": "Rect",
+      "pos": [1280, 430],
+      "props": { "width": 220, "height": 22, "fill": 4149685, "radius": 0 },
+      "components": [
+        {
+          "type": "PhysicsBody",
+          "shape": "box",
+          "width": 220,
+          "height": 22,
+          "isStatic": true
+        }
+      ]
+    },
+    {
+      "id": "ledge_c",
+      "entityType": "Rect",
+      "pos": [1880, 370],
+      "props": { "width": 280, "height": 22, "fill": 4149685, "radius": 0 },
+      "components": [
+        {
+          "type": "PhysicsBody",
+          "shape": "box",
+          "width": 280,
+          "height": 22,
           "isStatic": true
         }
       ]
@@ -80,7 +165,7 @@
     {
       "id": "moving_platform_1",
       "entityType": "Rect",
-      "pos": [1100, 480],
+      "pos": [980, 540],
       "props": { "width": 220, "height": 20, "fill": 5592405, "radius": 0 },
       "components": [
         {
@@ -94,9 +179,25 @@
       ]
     },
     {
+      "id": "moving_platform_2",
+      "entityType": "Rect",
+      "pos": [2320, 430],
+      "props": { "width": 180, "height": 20, "fill": 5592405, "radius": 0 },
+      "components": [
+        {
+          "type": "MovingPlatform",
+          "axis": "y",
+          "range": 180,
+          "speed": 70,
+          "width": 180,
+          "height": 20
+        }
+      ]
+    },
+    {
       "id": "spring_platform_1",
       "entityType": "Rect",
-      "pos": [1850, 555],
+      "pos": [2720, 575],
       "props": { "width": 90, "height": 30, "fill": 16763904, "radius": 0 },
       "components": [
         {
@@ -110,32 +211,256 @@
       ]
     },
     {
+      "id": "enemy_slime_1",
+      "prefab": "enemy_sprite_2d",
+      "pos": [840, 560],
+      "width": 48,
+      "height": 48,
+      "components": [
+        { "type": "PatrolBehavior", "range": 220, "speed": 2 },
+        { "type": "CollisionHarm", "damage": 10 },
+        { "type": "Health", "hp": 30, "maxHp": 30 }
+      ]
+    },
+    {
+      "id": "enemy_slime_2",
+      "prefab": "enemy_sprite_2d",
+      "pos": [1760, 330],
+      "width": 46,
+      "height": 46,
+      "components": [
+        {
+          "type": "FollowTarget",
+          "targetEntityName": "hero",
+          "minDistance": 120,
+          "speed": 70
+        },
+        { "type": "LookAt", "targetEntityName": "hero", "rotationSpeed": 4 },
+        { "type": "CollisionHarm", "damage": 12 },
+        { "type": "Health", "hp": 35, "maxHp": 35 }
+      ]
+    },
+    {
+      "id": "enemy_spawn_1",
+      "entityType": "EnemySpawn",
+      "pos": [2500, 560],
+      "components": [
+        {
+          "type": "EnemySpawn",
+          "prefab": "enemy_sprite_2d",
+          "slot": 1,
+          "intervalSec": 25
+        }
+      ]
+    },
+    {
+      "id": "checkpoint_1",
+      "entityType": "Checkpoint",
+      "pos": [980, 520],
+      "components": [
+        {
+          "type": "PhysicsBody",
+          "shape": "box",
+          "width": 36,
+          "height": 36,
+          "isStatic": true,
+          "isSensor": true
+        },
+        {
+          "type": "TriggerZone",
+          "once": false,
+          "onEnter": [{ "type": "SetCheckpoint", "checkpointId": "cp_1" }]
+        }
+      ]
+    },
+    {
+      "id": "checkpoint_2",
+      "entityType": "Checkpoint",
+      "pos": [2220, 410],
+      "components": [
+        {
+          "type": "TriggerZone",
+          "once": false,
+          "onEnter": [{ "type": "SetCheckpoint", "checkpointId": "cp_2" }]
+        },
+        {
+          "type": "PhysicsBody",
+          "shape": "box",
+          "width": 36,
+          "height": 36,
+          "isStatic": true,
+          "isSensor": true
+        }
+      ]
+    },
+    {
+      "id": "coin_1",
+      "entityType": "CoinPickup",
+      "pos": [520, 560],
+      "components": [
+        {
+          "type": "CollectibleTrigger",
+          "value": 1,
+          "once": true,
+          "despawnSelf": true
+        }
+      ]
+    },
+    {
+      "id": "coin_2",
+      "entityType": "CoinPickup",
+      "pos": [760, 455],
+      "components": [
+        {
+          "type": "CollectibleTrigger",
+          "value": 1,
+          "once": true,
+          "despawnSelf": true
+        }
+      ]
+    },
+    {
+      "id": "coin_3",
+      "entityType": "CoinPickup",
+      "pos": [1280, 390],
+      "components": [
+        {
+          "type": "CollectibleTrigger",
+          "value": 1,
+          "once": true,
+          "despawnSelf": true
+        }
+      ]
+    },
+    {
+      "id": "coin_4",
+      "entityType": "CoinPickup",
+      "pos": [1880, 330],
+      "components": [
+        {
+          "type": "CollectibleTrigger",
+          "value": 1,
+          "once": true,
+          "despawnSelf": true
+        }
+      ]
+    },
+    {
+      "id": "coin_5",
+      "entityType": "CoinPickup",
+      "pos": [2740, 520],
+      "components": [
+        {
+          "type": "CollectibleTrigger",
+          "value": 1,
+          "once": true,
+          "despawnSelf": true
+        }
+      ]
+    },
+    {
+      "id": "hazard_spikes_1",
+      "entityType": "Polygon",
+      "pos": [1480, 585],
+      "props": {
+        "vertices": [[-40, 16], [0, -18], [40, 16]],
+        "fill": 16733525,
+        "alpha": 0.85,
+        "lineColor": 5242880,
+        "lineWidth": 2
+      },
+      "components": [
+        {
+          "type": "PhysicsBody",
+          "shape": "polygon",
+          "vertices": [[-40, 16], [0, -18], [40, 16]],
+          "isStatic": true,
+          "isSensor": true
+        },
+        {
+          "type": "TriggerZone",
+          "onEnter": [{ "type": "DamageOther", "damage": 15 }]
+        }
+      ]
+    },
+    {
+      "id": "hazard_spikes_2",
+      "entityType": "Polygon",
+      "pos": [2460, 585],
+      "props": {
+        "vertices": [[-45, 16], [0, -20], [45, 16]],
+        "fill": 16733525,
+        "alpha": 0.85,
+        "lineColor": 5242880,
+        "lineWidth": 2
+      },
+      "components": [
+        {
+          "type": "PhysicsBody",
+          "shape": "polygon",
+          "vertices": [[-45, 16], [0, -20], [45, 16]],
+          "isStatic": true,
+          "isSensor": true
+        },
+        {
+          "type": "TriggerZone",
+          "onEnter": [{ "type": "DamageOther", "damage": 20 }]
+        }
+      ]
+    },
+    {
       "id": "powerup_spawner",
       "entityType": "Rect",
-      "pos": [1350, 440],
+      "pos": [2060, 360],
       "props": { "width": 1, "height": 1, "fill": 0, "alpha": 0, "radius": 0 },
       "components": [
         {
           "type": "PlatformSpawner",
-          "cooldownMs": 8000,
+          "cooldownMs": 9000,
           "maxAlive": 2,
           "spawnedPrefix": "powerup",
           "template": {
             "id": "powerup_item",
-            "entityType": "Circle",
-            "pos": [1350, 400],
-            "props": { "radius": 14, "fill": 16776960 },
+            "entityType": "Powerup",
+            "pos": [2060, 320],
+            "props": {
+              "width": 22,
+              "height": 22,
+              "fill": 11165695,
+              "radius": 7
+            },
             "components": [
-              {
-                "type": "PhysicsBody",
-                "shape": "circle",
-                "radius": 14,
-                "isStatic": true,
-                "isSensor": true
-              },
-              { "type": "CoinCollectible", "value": 1 }
+              { "type": "PowerupTrigger", "healAmount": 20, "once": true }
             ]
           }
+        }
+      ]
+    },
+    {
+      "id": "goal_flag",
+      "entityType": "LevelEnd",
+      "pos": [3080, 545],
+      "components": [
+        {
+          "type": "PhysicsBody",
+          "shape": "box",
+          "width": 46,
+          "height": 90,
+          "isStatic": true,
+          "isSensor": true
+        },
+        {
+          "type": "TriggerZone",
+          "once": true,
+          "onEnter": [
+            {
+              "type": "LevelEnd",
+              "reason": "goal_reached",
+              "despawnSelf": false,
+              "pausePhysics": true,
+              "transitionTo": "paused"
+            }
+          ]
         }
       ]
     }

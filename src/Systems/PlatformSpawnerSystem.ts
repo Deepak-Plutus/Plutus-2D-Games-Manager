@@ -15,8 +15,11 @@ export class PlatformSpawnerSystem extends System {
       if (!template) continue;
 
       spawner.elapsedMs += Math.max(0, dt);
-      if (spawner.elapsedMs < spawner.cooldownMs) continue;
-      spawner.elapsedMs = 0;
+      if (spawner.elapsedMs >= spawner.cooldownMs) {
+        spawner.elapsedMs = 0;
+        spawner.requestSpawnNow();
+      }
+      if (!spawner.consumeSpawnRequest()) continue;
 
       const alive = entitiesApi
         .all()

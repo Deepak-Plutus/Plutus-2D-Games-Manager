@@ -31,5 +31,21 @@ export class CollisionHarmComponent {
   markHit(nowMs: number): void {
     this.lastHitAtMs = nowMs;
   }
+
+  setDamage(v: number): void {
+    if (!Number.isFinite(v)) return;
+    this._damage = Math.max(0, v);
+  }
+
+  applyDamage(entity: { hp?: number; takeDamage?: (v: number) => void } | undefined): void {
+    if (!entity) return;
+    if (typeof entity.takeDamage === 'function') {
+      entity.takeDamage(this._damage);
+      return;
+    }
+    if (typeof entity.hp === 'number') {
+      entity.hp = Math.max(0, entity.hp - this._damage);
+    }
+  }
 }
 

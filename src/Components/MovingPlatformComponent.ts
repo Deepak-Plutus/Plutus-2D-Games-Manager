@@ -1,4 +1,5 @@
 export type MovingPlatformAxis = 'x' | 'y';
+type Vec2 = { x: number; y: number };
 
 export class MovingPlatformComponent {
   private _axis: MovingPlatformAxis;
@@ -6,6 +7,7 @@ export class MovingPlatformComponent {
   private _speed: number;
   private _start?: number;
   private _dir: 1 | -1;
+  private _path: Vec2[] = [];
 
   constructor(init?: Partial<MovingPlatformComponent>) {
     this._axis = init?.axis ?? 'x';
@@ -48,5 +50,33 @@ export class MovingPlatformComponent {
   }
   set dir(value: 1 | -1) {
     this._dir = value;
+  }
+
+  get path(): Vec2[] {
+    return this._path;
+  }
+
+  setPath(points: Vec2[]): void {
+    this._path = Array.isArray(points) ? points.map((p) => ({ x: p.x, y: p.y })) : [];
+    if (this._path.length < 2) return;
+    const a = this._path[0];
+    const b = this._path[1];
+    const dx = Math.abs(b.x - a.x);
+    const dy = Math.abs(b.y - a.y);
+    this._axis = dx >= dy ? 'x' : 'y';
+    const coords = this._path.map((p) => (this._axis === 'x' ? p.x : p.y));
+    const min = Math.min(...coords);
+    const max = Math.max(...coords);
+    this._start = (min + max) * 0.5;
+    this._range = Math.max(0, (max - min) * 0.5);
+  }
+
+  setSpeed(v: number): void {
+    if (!Number.isFinite(v)) return;
+    this._speed = Math.max(0, v);
+  }
+
+  updateMovement(_dtMs: number): void {
+    // Integration is handled by MovingPlatformSystem; this method keeps doc API parity.
   }
 }

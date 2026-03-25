@@ -11,4 +11,16 @@ export class SpringPlatformComponent {
   set jumpBoost(value: number) {
     this._jumpBoost = value;
   }
+
+  // Doc API alias
+  setForce(v: number): void {
+    if (!Number.isFinite(v)) return;
+    this._jumpBoost = v;
+  }
+
+  // Doc API helper
+  bounce(entity: { velocity?: { x: number; y: number } } | undefined): void {
+    if (!entity?.velocity) return;
+    entity.velocity.y = -Math.abs(this._jumpBoost);
+  }
 }

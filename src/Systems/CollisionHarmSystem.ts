@@ -56,8 +56,7 @@ export class CollisionHarmSystem extends System {
 
     if (!harm.canHit(this.nowMs)) return;
     harm.markHit(this.nowMs);
-
-    hp.hp = Math.max(0, hp.hp - harm.damage);
+    harm.applyDamage(hp as any);
     if (hp.hp <= 0) {
       // Later: integrate with EntitiesManagementSystem to despawn, play VFX, etc.
       console.log(`[health] ${otherEnt.name} died`);

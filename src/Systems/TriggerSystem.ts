@@ -1,15 +1,27 @@
-import { Events } from 'matter-js';
+import { Events, Body, Vector } from 'matter-js';
 import { System } from '../Core/System';
 import type { World } from '../Core/World';
 import { TriggerZoneComponent, type TriggerAction } from '../Components/TriggerZoneComponent';
 import type { PhysicsState } from './PhysicsSystem';
 import { RES_PHYSICS } from './PhysicsSystem';
+import { RES_PHYSICS_API, type PhysicsApi } from './PhysicsSystem';
 import type { AudioApi } from './AudioSystem';
 import { RES_AUDIO_API } from './AudioSystem';
 import type { EntitiesResource } from './EntitiesManagementSystem';
 import { RES_ENTITIES } from './EntitiesManagementSystem';
+import { HealthComponent } from '../Components/HealthComponent';
+import { CoinCollectibleComponent } from '../Components/CoinCollectibleComponent';
+import { RES_COINS, type CoinsState } from './CoinCollectionSystem';
+import { RES_STATE_API, type StateApi } from './StateManagementSystem';
+import { TagComponent } from '../Components/TagComponent';
+import { PhysicsBodyComponent } from '../Components/PhysicsBodyComponent';
+import { TransformComponent } from '../Components/TransformComponent';
 
 export const RES_TRIGGER_API = 'trigger_api';
+export const RES_CHECKPOINT = 'checkpoint';
+export type CheckpointState = { id: string };
+export const RES_LEVEL_END = 'level_end';
+export type LevelEndState = { ended: boolean; reason?: string };
 export type TriggerApi = {
   getActivePairCount: () => number;
   resetOnce: (triggerEntityId?: number) => void;
@@ -116,10 +128,15 @@ export class TriggerSystem extends System {
     const entitiesRes = world.getResource<EntitiesResource>(RES_ENTITIES);
     const audio = world.getResource<AudioApi>(RES_AUDIO_API);
 
-    // Optional tag filter (uses EntitiesManagementSystem tags)
-    if (trigger.tag && entitiesRes && !entitiesRes.hasTag(otherEnt, trigger.tag)) return;
+    // Optional tag filter:
+    // - Prefer ECS TagComponent (supports runtime add/remove on component).
+    // - Fall back to EntitiesManagementSystem tags (if present).
+    if (trigger.tag) {
+      const tagOk = world.getComponent(otherEnt, TagComponent)?.hasTag(trigger.tag) ?? entitiesRes?.hasTag(otherEnt, trigger.tag) ?? false;
+      if (!tagOk) return;
+    }
 
-    const actions = eventType === 'enter' ? trigger.onEnter : trigger.onExit;
+    const actions = eventType === 'enter' ? trigger.onEnter(otherEnt) : trigger.onExit(otherEnt);
     for (const a of actions) this.runAction(a, world, audio, entitiesRes, triggerEnt.id, otherEnt.id);
 
     if (trigger.once && eventType === 'enter') this.firedOnce.add(triggerEnt.id);
@@ -133,6 +150,9 @@ export class TriggerSystem extends System {
     selfId: number,
     otherId: number,
   ): void {
+    const selfEnt = world.getEntity(selfId);
+    const otherEnt = world.getEntity(otherId);
+
     switch (action.type) {
       case 'PlaySound':
         audio?.play(action.soundId);
@@ -143,6 +163,77 @@ export class TriggerSystem extends System {
       case 'DespawnSelf':
         entities?.despawnById(selfId);
         return;
+      case 'DamageOther': {
+        if (!otherEnt) return;
+        const hp = world.getComponent(otherEnt, HealthComponent);
+        if (!hp) return;
+        const dmg = typeof action.damage === 'number' ? action.damage : 10;
+        hp.hp = Math.max(0, hp.hp - dmg);
+        return;
+      }
+      case 'HealOther': {
+        if (!otherEnt) return;
+        const hp = world.getComponent(otherEnt, HealthComponent);
+        if (!hp) return;
+        const amt = Math.max(0, action.amount);
+        hp.hp = hp.hp + amt;
+        return;
+      }
+      case 'TeleportOther': {
+        if (!otherEnt) return;
+        const t = world.getComponent(otherEnt, TransformComponent);
+        if (t) {
+          t.position.x = action.x;
+          t.position.y = action.y;
+        }
+
+        const phys = world.getComponent(otherEnt, PhysicsBodyComponent);
+        if (phys) {
+          Body.setPosition(phys.body, Vector.create(action.x, action.y));
+          Body.setVelocity(phys.body, Vector.create(0, 0));
+        }
+        return;
+      }
+      case 'CollectCoin': {
+        // CollectCoin is meant for "coin pickup" sensors:
+        // - trigger entity holds CoinCollectibleComponent (selfEnt)
+        // - other entity is usually the player
+        const coins = world.getResource<CoinsState>(RES_COINS) ?? { total: 0 };
+        if (!world.getResource<CoinsState>(RES_COINS)) world.setResource<CoinsState>(RES_COINS, coins);
+
+        const coinComp = selfEnt ? world.getComponent(selfEnt, CoinCollectibleComponent) : undefined;
+        const v = typeof action.value === 'number' ? action.value : coinComp?.value ?? 1;
+        coins.total += Math.max(1, Math.floor(v));
+
+        const despawnSelf = action.despawnSelf ?? true;
+        if (despawnSelf) entities?.despawnById(selfId);
+        return;
+      }
+      case 'SetCheckpoint': {
+        world.setResource<CheckpointState>(RES_CHECKPOINT, { id: action.checkpointId });
+        return;
+      }
+      case 'LevelEnd': {
+        world.setResource<LevelEndState>(RES_LEVEL_END, { ended: true, reason: action.reason });
+
+        const shouldPausePhysics = action.pausePhysics ?? true;
+        if (shouldPausePhysics) {
+          const phys = world.getResource<PhysicsApi>(RES_PHYSICS_API);
+          phys?.pause();
+        }
+
+        if (action.transitionTo) {
+          const stateApi = world.getResource<StateApi>(RES_STATE_API);
+          stateApi?.transition(action.transitionTo, action.reason ?? 'level_end');
+        } else {
+          const stateApi = world.getResource<StateApi>(RES_STATE_API);
+          stateApi?.transition('paused', action.reason ?? 'level_end');
+        }
+
+        const despawnSelf = action.despawnSelf ?? true;
+        if (despawnSelf) entities?.despawnById(selfId);
+        return;
+      }
       default:
         void world;
         return;

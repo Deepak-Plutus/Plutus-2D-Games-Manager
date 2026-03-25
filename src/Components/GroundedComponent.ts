@@ -22,5 +22,18 @@ export class GroundedComponent {
   set groundContacts(value: number) {
     this._groundContacts = value;
   }
+
+  setGrounded(value: boolean): void {
+    this._grounded = !!value;
+  }
+
+  isGrounded(): boolean {
+    return this._grounded;
+  }
+
+  reset(): void {
+    this._grounded = false;
+    this._groundContacts = 0;
+  }
 }
 

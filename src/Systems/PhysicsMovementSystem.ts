@@ -24,17 +24,23 @@ export class PhysicsMovementSystem extends System {
     if (!input) return;
 
     for (const [entity, ctrl, phys] of world.query(PhysicsControllerComponent, PhysicsBodyComponent)) {
+      ctrl.updateController(_dt);
       // If Construct-like platformer behavior exists, don't also drive via PhysicsController.
       if (world.hasComponent(entity, PlatformerBehaviorComponent)) continue;
 
       const body = phys.body;
       if (body.isStatic) continue;
 
+      const dash = ctrl.consumeDashRequested();
+      if (dash.active) {
+        Body.setVelocity(body, { x: clamp(dash.dir * ctrl.maxSpeedX, -ctrl.maxSpeedX, ctrl.maxSpeedX), y: body.velocity.y });
+      }
+
       if (ctrl.mode === 'topdown') {
         this.applyTopdown(input, ctrl, body);
       } else {
         const groundedComp = world.getComponent(entity, GroundedComponent);
-        const grounded = groundedComp?.grounded ?? isGroundedApprox(body);
+        const grounded = groundedComp?.isGrounded() ?? isGroundedApprox(body);
         this.applyPlatformer(input, ctrl, body, grounded);
       }
     }
@@ -66,7 +72,8 @@ export class PhysicsMovementSystem extends System {
     const jumpPressed =
       input.justPressed.has('Space') || input.justPressed.has('ArrowUp') || input.justPressed.has('KeyW');
 
-    const dir = (right ? 1 : 0) - (left ? 1 : 0);
+    const keyboardDir = (right ? 1 : 0) - (left ? 1 : 0);
+    const dir = keyboardDir !== 0 ? keyboardDir : ctrl.consumeMoveDir();
 
     const control = grounded ? 1 : clamp(ctrl.airControl, 0, 1);
 
@@ -80,7 +87,7 @@ export class PhysicsMovementSystem extends System {
     });
 
     // Jump impulse if grounded
-    if (jumpPressed && grounded) {
+    if ((jumpPressed || ctrl.consumeJumpRequested()) && grounded) {
       const impulse = Vector.create(0, -Math.abs(ctrl.jumpImpulse));
       Body.applyForce(body, body.position, impulse);
     }

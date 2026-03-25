@@ -11,6 +11,8 @@ export class PlatformerBehaviorComponent {
   private _coyoteTimeMs: number;
   private _jumpBufferMs: number;
   private _maxFallSpeed: number;
+  private _moveIntent: -1 | 0 | 1 = 0;
+  private _jumpIntent = false;
 
   constructor(init?: Partial<PlatformerBehaviorComponent>) {
     this._maxSpeedX = init?.maxSpeedX ?? 7;
@@ -86,6 +88,48 @@ export class PlatformerBehaviorComponent {
   }
   set maxFallSpeed(value: number) {
     this._maxFallSpeed = value;
+  }
+
+  moveLeft(): void {
+    this._moveIntent = -1;
+  }
+
+  moveRight(): void {
+    this._moveIntent = 1;
+  }
+
+  stopMoving(): void {
+    this._moveIntent = 0;
+  }
+
+  jump(): void {
+    this._jumpIntent = true;
+  }
+
+  updateMovement(_dtMs: number): void {
+    // Behavior is resolved by PlatformerBehaviorSystem.
+  }
+
+  consumeMoveIntent(): -1 | 0 | 1 {
+    return this._moveIntent;
+  }
+
+  clearMoveIntent(): void {
+    this._moveIntent = 0;
+  }
+
+  hasJumpIntent(): boolean {
+    return this._jumpIntent;
+  }
+
+  consumeJumpIntent(): boolean {
+    const v = this._jumpIntent;
+    this._jumpIntent = false;
+    return v;
+  }
+
+  clearJumpIntent(): void {
+    this._jumpIntent = false;
   }
 }
 

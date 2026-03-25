@@ -4,10 +4,17 @@ import type { GameDefinition } from '../Definitions/GameDefinition';
 import { TransformComponent } from '../Components/TransformComponent';
 import { RES_GAME_DEF } from './LoadingSystem';
 import { RES_PIXI_APP } from './PixiAppSystem';
+import { RES_GROUPS, type GroupsState } from './GroupSystem';
+import { RES_SYSTEM_PARAMS, type SystemParamsState } from '../games/base/BaseGameRuntime';
 
 type CameraConfig = {
   zoom?: number;
   follow_entity_id?: string;
+  followTarget?: { type: 'entity' | 'group'; id: string; axis?: 'x' | 'y' | 'xy' };
+  followAxis?: 'x' | 'y' | 'xy';
+  followOffset?: { x?: number; y?: number };
+  followOffsetX?: number;
+  followOffsetY?: number;
   follow_right_only?: boolean;
   lock_y?: boolean;
   y?: number;
@@ -34,8 +41,40 @@ export class CameraFollowSystem extends System {
     if (!app || !def) return;
 
     const cfg = (def.world?.camera as CameraConfig | undefined) ?? {};
+    const params = world.getResource<SystemParamsState>(RES_SYSTEM_PARAMS)?.CameraFollowSystem ?? {};
+    const p = params as Record<string, unknown>;
     const zoom = typeof cfg.zoom === 'number' && cfg.zoom > 0 ? cfg.zoom : 2;
-    const followId = typeof cfg.follow_entity_id === 'string' ? cfg.follow_entity_id : 'hero';
+    const followId =
+      typeof p.follow_entity_id === "string"
+        ? (p.follow_entity_id as string)
+        : typeof cfg.follow_entity_id === 'string'
+          ? cfg.follow_entity_id
+          : 'hero';
+    const followTarget =
+      p.followTarget && typeof p.followTarget === "object"
+        ? (p.followTarget as CameraConfig["followTarget"])
+        : cfg.followTarget;
+    const followAxis =
+      p.followAxis === "x" || p.followAxis === "y" || p.followAxis === "xy"
+        ? (p.followAxis as "x" | "y" | "xy")
+        : cfg.followAxis ?? followTarget?.axis ?? "xy";
+    const followOffsetX =
+      typeof p.followOffsetX === "number"
+        ? (p.followOffsetX as number)
+        : typeof cfg.followOffsetX === "number"
+          ? cfg.followOffsetX
+          : typeof cfg.followOffset?.x === "number"
+            ? cfg.followOffset.x
+            : 0;
+    const followOffsetY =
+      typeof p.followOffsetY === "number"
+        ? (p.followOffsetY as number)
+        : typeof cfg.followOffsetY === "number"
+          ? cfg.followOffsetY
+          : typeof cfg.followOffset?.y === "number"
+            ? cfg.followOffset.y
+            : 0;
+    const axisFromParams = p.followAxis === "x" || p.followAxis === "y" || p.followAxis === "xy";
     const followRightOnly = cfg.follow_right_only ?? true;
     const lockY = cfg.lock_y ?? true;
 
@@ -46,29 +85,30 @@ export class CameraFollowSystem extends System {
       app.stage.scale.set(zoom, zoom);
     }
 
-    // Find target by name
-    let targetX: number | undefined;
-    let targetY: number | undefined;
-    for (const e of world.allEntities()) {
-      if (e.name !== followId) continue;
-      const t = world.getComponent(e, TransformComponent);
-      if (!t) continue;
-      targetX = t.position.x;
-      targetY = t.position.y;
-      break;
-    }
+    // Find target by entity or group.
+    const target =
+      followTarget?.type === "group"
+        ? resolveGroupTarget(world, followTarget.id)
+        : resolveEntityTarget(world, followTarget?.id ?? followId);
+    let targetX = target?.x;
+    let targetY = target?.y;
     if (targetX === undefined || targetY === undefined) return;
 
+    const currentPivot = app.stage.pivot;
+    let camX = followAxis === "y" ? currentPivot.x : targetX;
+    let camY = followAxis === "x" ? currentPivot.y : targetY;
+    if (followAxis !== "y") camX += followOffsetX;
+    if (followAxis !== "x") camY += followOffsetY;
+
     // Right-only follow: never move camera back to the left
-    let camX = targetX;
-    if (followRightOnly) {
+    if (followRightOnly && followAxis !== "y") {
       if (!Number.isFinite(this.lastCamX)) this.lastCamX = camX;
       this.lastCamX = Math.max(this.lastCamX, camX);
       camX = this.lastCamX;
     }
 
-    let camY = targetY;
-    if (lockY) {
+    // Explicit system followAxis should take precedence over lock_y.
+    if (lockY && followAxis !== "x" && !axisFromParams) {
       camY = typeof cfg.y === 'number' ? cfg.y : targetY;
     }
 
@@ -99,5 +139,35 @@ export class CameraFollowSystem extends System {
 
 function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v));
+}
+
+function resolveEntityTarget(world: World, name: string): { x: number; y: number } | undefined {
+  for (const e of world.allEntities()) {
+    if (e.name !== name) continue;
+    const t = world.getComponent(e, TransformComponent);
+    if (!t) continue;
+    return { x: t.position.x, y: t.position.y };
+  }
+  return undefined;
+}
+
+function resolveGroupTarget(world: World, groupKey: string): { x: number; y: number } | undefined {
+  const groups = world.getResource<GroupsState>(RES_GROUPS);
+  const ids = groups?.groups?.[groupKey];
+  if (!ids?.length) return undefined;
+  let sx = 0;
+  let sy = 0;
+  let n = 0;
+  for (const id of ids) {
+    const e = world.getEntity(id);
+    if (!e) continue;
+    const t = world.getComponent(e, TransformComponent);
+    if (!t) continue;
+    sx += t.position.x;
+    sy += t.position.y;
+    n++;
+  }
+  if (n <= 0) return undefined;
+  return { x: sx / n, y: sy / n };
 }
 

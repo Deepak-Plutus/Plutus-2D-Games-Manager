@@ -24,10 +24,15 @@ export type GameDefinition = {
   engine: 'pixi_2d' | string;
   world?: Record<string, unknown>;
   /**
+   * System config:
+   * - boolean: enable/disable
+   * - object: optional enable + params
+   */
+  systems?: Record<string, boolean | { enabled?: boolean; params?: Record<string, unknown> }>;
+  /**
    * Optional system toggles by system singleton key / registry key.
    * If omitted, defaults are used by BaseGameRuntime.
    */
-  systems?: Record<string, boolean>;
   entities: EntityDefinition[];
 };
 

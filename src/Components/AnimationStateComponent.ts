@@ -39,5 +39,34 @@ export class AnimationStateComponent {
   set current(value: 'idle' | 'run') {
     this._current = value;
   }
+
+  setState(name: 'idle' | 'run'): void {
+    this._current = name;
+  }
+
+  getState(): 'idle' | 'run' {
+    return this._current;
+  }
+
+  transitionTo(name: 'idle' | 'run'): void {
+    this._current = name;
+  }
+
+  setClips(idle: string, run: string): void {
+    this._idle = idle;
+    this._run = run;
+  }
+
+  getClipForCurrentState(): string {
+    return this._current === 'run' ? this._run : this._idle;
+  }
+
+  isState(name: 'idle' | 'run'): boolean {
+    return this._current === name;
+  }
+
+  updateState(_dtMs: number): void {
+    // State transition policy is system-driven.
+  }
 }
 

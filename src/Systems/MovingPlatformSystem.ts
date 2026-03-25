@@ -13,6 +13,7 @@ export class MovingPlatformSystem extends System {
 
     const dtSec = Math.max(0, dt) / 1000;
     for (const [entity, mover, transform] of world.query(MovingPlatformComponent, TransformComponent)) {
+      mover.updateMovement(dt);
       const start = mover.start ?? (mover.axis === 'x' ? transform.position.x : transform.position.y);
       if (mover.start === undefined) mover.start = start;
 

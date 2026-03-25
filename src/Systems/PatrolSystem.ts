@@ -22,13 +22,14 @@ export class PatrolSystem extends System {
     if (state?.current === 'paused') return;
 
     for (const [entity, patrol, transform] of world.query(PatrolBehaviorComponent, TransformComponent)) {
+      patrol.updatePatrol(_dt);
       if (patrol.startX === undefined) patrol.startX = transform.position.x;
 
       const minX = patrol.startX - patrol.range;
       const maxX = patrol.startX + patrol.range;
 
-      if (transform.position.x <= minX) patrol.dir = 1;
-      if (transform.position.x >= maxX) patrol.dir = -1;
+      if (transform.position.x <= minX && patrol.dir < 0) patrol.reverseDirection();
+      if (transform.position.x >= maxX && patrol.dir > 0) patrol.reverseDirection();
 
       const phys = world.getComponent(entity, PhysicsBodyComponent);
       const targetVx = patrol.dir * patrol.speed * (phys ? this.patrolSpeedScalePhysics : this.patrolSpeedScaleKinematic);

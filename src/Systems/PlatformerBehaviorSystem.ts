@@ -63,9 +63,10 @@ export class PlatformerBehaviorSystem extends System {
     const dtMs = Math.max(0, dt);
     const def = world.getResource<GameDefinition>(RES_GAME_DEF);
 
-    const dir = (right ? 1 : 0) - (left ? 1 : 0);
+    const keyboardDir = (right ? 1 : 0) - (left ? 1 : 0);
 
     for (const [entity, behavior, phys] of world.query(PlatformerBehaviorComponent, PhysicsBodyComponent)) {
+      behavior.updateMovement(dtMs);
       const body = phys.body;
       if (body.isStatic) continue;
 
@@ -75,11 +76,15 @@ export class PlatformerBehaviorSystem extends System {
       const control = grounded ? 1 : clamp01(behavior.airControl);
       const entityId = entity.id;
 
+      // Allow method-driven intents in addition to keyboard input.
+      const intentDir = behavior.consumeMoveIntent();
+      const dir = keyboardDir !== 0 ? keyboardDir : intentDir;
+
       // Jump buffer + coyote time (smoother platformer feel)
       if (grounded) this.coyoteTimers.set(entityId, behavior.coyoteTimeMs);
       else this.coyoteTimers.set(entityId, Math.max(0, (this.coyoteTimers.get(entityId) ?? 0) - dtMs));
 
-      if (jumpPressed) this.jumpBuffers.set(entityId, behavior.jumpBufferMs);
+      if (jumpPressed || behavior.consumeJumpIntent()) this.jumpBuffers.set(entityId, behavior.jumpBufferMs);
       else this.jumpBuffers.set(entityId, Math.max(0, (this.jumpBuffers.get(entityId) ?? 0) - dtMs));
 
       // Horizontal control: accelerate toward target vx
@@ -125,6 +130,8 @@ export class PlatformerBehaviorSystem extends System {
 
       // Keep within horizontal world bounds (prevents moving back/outside area)
       this.applyHorizontalBounds(body, entity.view.width, def);
+
+      behavior.clearMoveIntent();
     }
   }
 
