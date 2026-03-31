@@ -1,0 +1,101 @@
+{
+  "broadcastChannel": "plutus-2048",
+  "app": {
+    "width": 800,
+    "height": 680,
+    "background": "#dbeafe"
+  },
+  "systems": {
+    "behavior": { "enabled": true },
+    "displaySync": { "enabled": true },
+    "physics": { "enabled": false },
+    "platformerGame": { "enabled": false },
+    "game2048": { "enabled": true }
+  },
+  "game2048": {
+    "cellSize": 72,
+    "gap": 8,
+    "boardOrigin": { "x": 400, "y": 372 },
+    "slideDuration": 0.14,
+    "slideEase": "power2.out",
+    "winValue": 2048
+  },
+  "input": {
+    "actions": {
+      "up": ["ArrowUp", "KeyW"],
+      "down": ["ArrowDown", "KeyS"],
+      "left": ["ArrowLeft", "KeyA"],
+      "right": ["ArrowRight", "KeyD"]
+    },
+    "dragThreshold": 24,
+    "wheel": { "enabled": false },
+    "gamepad": { "enabled": false }
+  },
+  "layers": [
+    { "name": "Background", "zIndex": 0 },
+    { "name": "Main", "zIndex": 100 }
+  ],
+  "assets": [
+    {
+      "id": "pixel",
+      "url": "/pixel.png",
+      "type": "image",
+      "width": 1,
+      "height": 1
+    }
+  ],
+  "objectTypes": [
+    {
+      "id": "cell2048",
+      "plugin": "Sprite",
+      "sprite": { "assetId": "pixel", "tint": 15591934, "anchorX": 0.5, "anchorY": 0.5 },
+      "layer": "Main",
+      "tags": ["gridCell"],
+      "behaviors": [
+        {
+          "type": "sine",
+          "movement": "size",
+          "wave": "sine",
+          "period": 4,
+          "magnitude": 1.8,
+          "magnitudeRandom": 0.35,
+          "randomizeInitialPhase": true
+        }
+      ]
+    },
+    {
+      "id": "tile2048",
+      "plugin": "none",
+      "layer": "Main",
+      "instanceVariables": { "value": 2 },
+      "behaviors": [
+        {
+          "type": "tween",
+          "defaultDuration": 0.14,
+          "defaultEase": "out-cubic",
+          "defaultRepeat": 0,
+          "defaultYoyo": false,
+          "stopOnDisable": true
+        }
+      ]
+    }
+  ],
+  "entities": [
+    { "type": "cell2048", "id": "cell_0_0", "transform": { "x": 280, "y": 252, "rotation": 0, "scaleX": 72, "scaleY": 72 }, "layer": "Main", "zIndex": 4 },
+    { "type": "cell2048", "id": "cell_0_1", "transform": { "x": 360, "y": 252, "rotation": 0, "scaleX": 72, "scaleY": 72 }, "layer": "Main", "zIndex": 4 },
+    { "type": "cell2048", "id": "cell_0_2", "transform": { "x": 440, "y": 252, "rotation": 0, "scaleX": 72, "scaleY": 72 }, "layer": "Main", "zIndex": 4 },
+    { "type": "cell2048", "id": "cell_0_3", "transform": { "x": 520, "y": 252, "rotation": 0, "scaleX": 72, "scaleY": 72 }, "layer": "Main", "zIndex": 4 },
+    { "type": "cell2048", "id": "cell_1_0", "transform": { "x": 280, "y": 332, "rotation": 0, "scaleX": 72, "scaleY": 72 }, "layer": "Main", "zIndex": 4 },
+    { "type": "cell2048", "id": "cell_1_1", "transform": { "x": 360, "y": 332, "rotation": 0, "scaleX": 72, "scaleY": 72 }, "layer": "Main", "zIndex": 4 },
+    { "type": "cell2048", "id": "cell_1_2", "transform": { "x": 440, "y": 332, "rotation": 0, "scaleX": 72, "scaleY": 72 }, "layer": "Main", "zIndex": 4 },
+    { "type": "cell2048", "id": "cell_1_3", "transform": { "x": 520, "y": 332, "rotation": 0, "scaleX": 72, "scaleY": 72 }, "layer": "Main", "zIndex": 4 },
+    { "type": "cell2048", "id": "cell_2_0", "transform": { "x": 280, "y": 412, "rotation": 0, "scaleX": 72, "scaleY": 72 }, "layer": "Main", "zIndex": 4 },
+    { "type": "cell2048", "id": "cell_2_1", "transform": { "x": 360, "y": 412, "rotation": 0, "scaleX": 72, "scaleY": 72 }, "layer": "Main", "zIndex": 4 },
+    { "type": "cell2048", "id": "cell_2_2", "transform": { "x": 440, "y": 412, "rotation": 0, "scaleX": 72, "scaleY": 72 }, "layer": "Main", "zIndex": 4 },
+    { "type": "cell2048", "id": "cell_2_3", "transform": { "x": 520, "y": 412, "rotation": 0, "scaleX": 72, "scaleY": 72 }, "layer": "Main", "zIndex": 4 },
+    { "type": "cell2048", "id": "cell_3_0", "transform": { "x": 280, "y": 492, "rotation": 0, "scaleX": 72, "scaleY": 72 }, "layer": "Main", "zIndex": 4 },
+    { "type": "cell2048", "id": "cell_3_1", "transform": { "x": 360, "y": 492, "rotation": 0, "scaleX": 72, "scaleY": 72 }, "layer": "Main", "zIndex": 4 },
+    { "type": "cell2048", "id": "cell_3_2", "transform": { "x": 440, "y": 492, "rotation": 0, "scaleX": 72, "scaleY": 72 }, "layer": "Main", "zIndex": 4 },
+    { "type": "cell2048", "id": "cell_3_3", "transform": { "x": 520, "y": 492, "rotation": 0, "scaleX": 72, "scaleY": 72 }, "layer": "Main", "zIndex": 4 }
+  ]
+}

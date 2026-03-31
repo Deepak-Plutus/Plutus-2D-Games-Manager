@@ -1,0 +1,89 @@
+{
+  "broadcastChannel": "plutus-demo",
+  "app": {
+    "width": 800,
+    "height": 600,
+    "background": "#1a1a2e"
+  },
+  "systems": {
+    "displaySync": { "enabled": true },
+    "behavior": { "enabled": true },
+    "physics": { "enabled": false }
+  },
+  "input": {
+    "actions": {
+      "jump": ["Space", "KeyW", "ArrowUp"],
+      "interact": ["KeyE", "Mouse0"]
+    },
+    "dragThreshold": 6,
+    "wheel": { "enabled": false },
+    "gamepad": { "enabled": false }
+  },
+  "layers": [
+    { "name": "Background", "zIndex": 0 },
+    { "name": "Main", "zIndex": 100 }
+  ],
+  "objectTypes": [
+    {
+      "id": "playerCharacter",
+      "plugin": "Sprite",
+      "sprite": { "assetId": "bunny" },
+      "layer": "Main",
+      "zIndex": 0,
+      "behaviors": [
+        {
+          "type": "platform",
+          "defaultControls": true,
+          "maxSpeed": 280,
+          "jumpStrength": 580,
+          "gravity": 1600
+        },
+        { "type": "boundToLayout", "boundBy": "edge" }
+      ],
+      "instanceVariables": { "lives": 3 }
+    }
+  ],
+  "assets": [
+    {
+      "id": "bunny",
+      "url": "https://pixijs.com/assets/bunny.png",
+      "type": "image",
+      "width": 80,
+      "height": 90
+    }
+  ],
+  "entities": [
+    {
+      "id": "ground",
+      "plugin": "none",
+      "layer": "Background",
+      "tags": ["solid", "static"],
+      "transform": { "x": 400, "y": 540, "rotation": 0, "scaleX": 1, "scaleY": 1 },
+      "collision": {
+        "kind": "solid",
+        "width": 800,
+        "height": 40,
+        "offsetX": 0,
+        "offsetY": 0
+      }
+    },
+    {
+      "type": "playerCharacter",
+      "id": "player",
+      "transform": { "x": 400, "y": 200, "rotation": 0, "scaleX": 1, "scaleY": 1 },
+      "groups": ["actors"],
+      "instanceVariables": { "lives": 5 }
+    },
+    {
+      "id": "mainCamera",
+      "plugin": "none",
+      "transform": { "x": 0, "y": 0, "rotation": 0, "scaleX": 1, "scaleY": 1 },
+      "camera": {
+        "followMetaName": "player",
+        "smoothSpeed": 8,
+        "offsetX": 0,
+        "offsetY": 0
+      }
+    }
+  ]
+}

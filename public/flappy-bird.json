@@ -1,0 +1,51 @@
+{
+  "broadcastChannel": "plutus-flappy-bird",
+  "app": {
+    "width": 800,
+    "height": 680,
+    "background": "#dbeafe"
+  },
+  "systems": {
+    "behavior": { "enabled": true },
+    "displaySync": { "enabled": true },
+    "physics": { "enabled": false },
+    "flappyBird": { "enabled": true }
+  },
+  "flappyBird": {
+    "birdAssetId": "birdSprite",
+    "pipeSpeed": 205,
+    "pipeWidth": 92,
+    "pipeGap": 188,
+    "pipeSpawnSec": 1.25,
+    "gravity": 1350,
+    "flapVelocity": -360,
+    "groundHeight": 92,
+    "birdScale": 0.16,
+    "birdRadius": 14,
+    "maxFallSpeed": 620,
+    "maxRiseSpeed": -440
+  },
+  "input": {
+    "actions": {
+      "flap": ["Space", "Mouse0"]
+    },
+    "dragThreshold": 24,
+    "wheel": { "enabled": false },
+    "gamepad": { "enabled": false }
+  },
+  "layers": [
+    { "name": "Background", "zIndex": 0 },
+    { "name": "Main", "zIndex": 100 }
+  ],
+  "assets": [
+    {
+      "id": "birdSprite",
+      "url": "/birdSprite.png",
+      "type": "image",
+      "width": 96,
+      "height": 96
+    }
+  ],
+  "objectTypes": [],
+  "entities": []
+}

@@ -1,0 +1,251 @@
+{
+  "broadcastChannel": "plutus-platformer",
+  "app": {
+    "width": "fullscreen",
+    "height": "fullscreen",
+    "background": "#9AD9FF"
+  },
+  "systems": {
+    "behavior": { "enabled": true },
+    "displaySync": { "enabled": true },
+    "physics": { "enabled": false },
+    "platformerGame": {
+      "enabled": true,
+      "playerMetaName": "player",
+      "hurtCooldown": 1.2,
+      "showHud": true,
+      "gameOverMessage": "GAME OVER — You ran out of lives. Refresh the page to try again.",
+      "winCoinTarget": 0,
+      "winMessage": "YOU WIN — You reached the end point! Refresh the page to play again."
+    }
+  },
+  "platformerGame": {
+    "hurtCooldown": 1.2,
+    "winCoinTarget": 0
+  },
+  "input": {
+    "actions": {
+      "jump": ["Space", "ArrowUp", "KeyW"],
+      "left": ["ArrowLeft", "KeyA"],
+      "right": ["ArrowRight", "KeyD"]
+    },
+    "wheel": { "enabled": false },
+    "gamepad": { "enabled": false }
+  },
+  "layers": [
+    { "name": "Background", "zIndex": 0 },
+    { "name": "Main", "zIndex": 100 }
+  ],
+  "objectTypes": [
+    {
+      "id": "floorSegment",
+      "plugin": "Sprite",
+      "sprite": { "shape": "rect", "tint": 5913375, "anchorX": 0.5, "anchorY": 0.5 },
+      "layer": "Main",
+      "collision": { "kind": "solid", "width": 1, "height": 1, "offsetX": 0, "offsetY": 0 }
+    },
+    {
+      "id": "platformBlock",
+      "plugin": "Sprite",
+      "sprite": { "shape": "rect", "tint": 12618327, "anchorX": 0.5, "anchorY": 0.5 },
+      "layer": "Background",
+      "collision": { "kind": "solid", "width": 1, "height": 1, "offsetX": 0, "offsetY": 0 }
+    },
+    {
+      "id": "pipeBlock",
+      "plugin": "Sprite",
+      "sprite": { "shape": "rect", "tint": 3124042, "anchorX": 0.5, "anchorY": 0.5 },
+      "layer": "Background",
+      "collision": { "kind": "solid", "width": 1, "height": 1, "offsetX": 0, "offsetY": 0 }
+    },
+    {
+      "id": "movingPlatform",
+      "plugin": "Sprite",
+      "sprite": { "assetId": "pixel", "tint": 5025616, "anchorX": 0.5, "anchorY": 0.5 },
+      "layer": "Main",
+      "collision": { "kind": "solid", "width": 1, "height": 1, "offsetX": 0, "offsetY": 0 },
+      "behaviors": [
+        {
+          "type": "sine",
+          "movement": "horizontal",
+          "wave": "sine",
+          "period": 3.8,
+          "magnitude": 100,
+          "randomizeInitialPhase": true
+        }
+      ]
+    },
+    {
+      "id": "playerHero",
+      "plugin": "Sprite",
+      "sprite": { "assetId": "bunny", "anchorX": 0.5, "anchorY": 0.5 },
+      "layer": "Main",
+      "tags": ["player"],
+      "collision": { "kind": "trigger", "width": 52, "height": 76, "offsetX": 0, "offsetY": 0 },
+      "instanceVariables": { "lives": 3, "coins": 0 },
+      "behaviors": [
+        {
+          "type": "platform",
+          "defaultControls": true,
+          "maxSpeed": 260,
+          "jumpStrength": 560,
+          "gravity": 1650,
+          "maxFallSpeed": 980,
+          "useLayoutFloor": false,
+          "keyBindings": {
+            "left": ["ArrowLeft", "KeyA"],
+            "right": ["ArrowRight", "KeyD"],
+            "jump": ["Space", "ArrowUp", "KeyW"]
+          }
+        }
+      ]
+    },
+    {
+      "id": "enemyWalker",
+      "plugin": "Sprite",
+      "sprite": { "assetId": "goomba", "anchorX": 0.5, "anchorY": 0.5, "width": 40, "height": 40 },
+      "layer": "Main",
+      "tags": ["enemy"],
+      "collision": { "kind": "trigger", "width": 40, "height": 40, "offsetX": 0, "offsetY": 0 },
+      "behaviors": [
+        {
+          "type": "patrolChase",
+          "mode": "ground",
+          "patrolSpeed": 68,
+          "chaseSpeed": 118,
+          "patrolMinX": 0,
+          "patrolMaxX": 200,
+          "gravity": 1700,
+          "maxFallSpeed": 980
+        }
+      ]
+    },
+    {
+      "id": "enemyFlyer",
+      "plugin": "Sprite",
+      "sprite": { "assetId": "pixel", "tint": 12024090, "anchorX": 0.5, "anchorY": 0.5 },
+      "layer": "Main",
+      "tags": ["enemy"],
+      "collision": { "kind": "trigger", "width": 1, "height": 1, "offsetX": 0, "offsetY": 0 },
+      "behaviors": [
+        {
+          "type": "patrolChase",
+          "mode": "fly",
+          "patrolSpeed": 50,
+          "chaseSpeed": 135,
+          "ampX": 88,
+          "patrolPeriod": 4.2
+        }
+      ]
+    },
+    {
+      "id": "coinBrick",
+      "plugin": "Sprite",
+      "sprite": { "shape": "circle", "circleRadius": 14, "tint": 16765440 },
+      "layer": "Main",
+      "tags": ["coinBlock"],
+      "collision": { "kind": "trigger", "width": 1, "height": 1, "offsetX": 0, "offsetY": 0 },
+      "instanceVariables": { "hasCoin": 1 }
+    },
+    {
+      "id": "goalFlag",
+      "plugin": "Sprite",
+      "sprite": { "assetId": "pixel", "tint": 16777215, "anchorX": 0.5, "anchorY": 0.5 },
+      "layer": "Main",
+      "tags": ["goal"],
+      "collision": { "kind": "trigger", "width": 1, "height": 1, "offsetX": 0, "offsetY": 0 }
+    },
+    {
+      "id": "deathZone",
+      "plugin": "Sprite",
+      "sprite": { "shape": "rect", "tint": 1785743, "anchorX": 0.5, "anchorY": 0.5 },
+      "layer": "Background",
+      "tags": ["death"],
+      "collision": { "kind": "trigger", "width": 1, "height": 1, "offsetX": 0, "offsetY": 0 }
+    }
+  ],
+  "assets": [
+    {
+      "id": "pixel",
+      "url": "/pixel.png",
+      "type": "image",
+      "width": 1,
+      "height": 1
+    },
+    {
+      "id": "bunny",
+      "url": "https://pixijs.com/assets/bunny.png",
+      "type": "image",
+      "width": 64,
+      "height": 72
+    },
+    {
+      "id": "goomba",
+      "url": "/goomba.png",
+      "type": "image",
+      "width": 40,
+      "height": 40
+    }
+  ],
+  "entities": [
+    { "id": "ground1", "type": "floorSegment", "transform": { "x": 320, "y": 580, "rotation": 0, "scaleX": 640, "scaleY": 40 } },
+    { "id": "ground2", "type": "floorSegment", "transform": { "x": 1040, "y": 580, "rotation": 0, "scaleX": 640, "scaleY": 40 } },
+    { "id": "ground3", "type": "floorSegment", "transform": { "x": 1880, "y": 580, "rotation": 0, "scaleX": 720, "scaleY": 40 } },
+    { "id": "ground4", "type": "floorSegment", "transform": { "x": 2860, "y": 580, "rotation": 0, "scaleX": 960, "scaleY": 40 } },
+    { "id": "groundGoal", "type": "floorSegment", "transform": { "x": 3500, "y": 580, "rotation": 0, "scaleX": 240, "scaleY": 40 } },
+
+    { "id": "pipe1", "type": "pipeBlock", "transform": { "x": 760, "y": 500, "rotation": 0, "scaleX": 80, "scaleY": 120 } },
+    { "id": "pipe2", "type": "pipeBlock", "transform": { "x": 1280, "y": 520, "rotation": 0, "scaleX": 80, "scaleY": 80 } },
+    { "id": "pipe3", "type": "pipeBlock", "transform": { "x": 2140, "y": 500, "rotation": 0, "scaleX": 80, "scaleY": 120 } },
+    { "id": "pipe4", "type": "pipeBlock", "transform": { "x": 2640, "y": 500, "rotation": 0, "scaleX": 80, "scaleY": 120 } },
+
+    { "id": "platA", "type": "platformBlock", "transform": { "x": 360, "y": 460, "rotation": 0, "scaleX": 160, "scaleY": 40 } },
+    { "id": "platB", "type": "platformBlock", "transform": { "x": 960, "y": 460, "rotation": 0, "scaleX": 240, "scaleY": 40 } },
+    { "id": "platC", "type": "platformBlock", "transform": { "x": 1560, "y": 460, "rotation": 0, "scaleX": 120, "scaleY": 40 } },
+    { "id": "platD", "type": "platformBlock", "transform": { "x": 2040, "y": 460, "rotation": 0, "scaleX": 320, "scaleY": 40 } },
+    { "id": "platE", "type": "platformBlock", "transform": { "x": 3040, "y": 460, "rotation": 0, "scaleX": 200, "scaleY": 40 } },
+
+    { "id": "stair1", "type": "platformBlock", "transform": { "x": 3180, "y": 540, "rotation": 0, "scaleX": 40, "scaleY": 80 } },
+    { "id": "stair2", "type": "platformBlock", "transform": { "x": 3220, "y": 520, "rotation": 0, "scaleX": 40, "scaleY": 120 } },
+    { "id": "stair3", "type": "platformBlock", "transform": { "x": 3260, "y": 500, "rotation": 0, "scaleX": 40, "scaleY": 160 } },
+    { "id": "stair4", "type": "platformBlock", "transform": { "x": 3300, "y": 480, "rotation": 0, "scaleX": 40, "scaleY": 200 } },
+
+    { "id": "coin1", "type": "coinBrick", "transform": { "x": 320, "y": 420, "rotation": 0, "scaleX": 26, "scaleY": 26 } },
+    { "id": "coin2", "type": "coinBrick", "transform": { "x": 400, "y": 420, "rotation": 0, "scaleX": 26, "scaleY": 26 } },
+    { "id": "coin3", "type": "coinBrick", "transform": { "x": 960, "y": 420, "rotation": 0, "scaleX": 26, "scaleY": 26 } },
+    { "id": "coin4", "type": "coinBrick", "transform": { "x": 1040, "y": 420, "rotation": 0, "scaleX": 26, "scaleY": 26 } },
+    { "id": "coin5", "type": "coinBrick", "transform": { "x": 1600, "y": 420, "rotation": 0, "scaleX": 26, "scaleY": 26 } },
+    { "id": "coin6", "type": "coinBrick", "transform": { "x": 2080, "y": 420, "rotation": 0, "scaleX": 26, "scaleY": 26 } },
+    { "id": "coin7", "type": "coinBrick", "transform": { "x": 2160, "y": 420, "rotation": 0, "scaleX": 26, "scaleY": 26 } },
+    { "id": "coin8", "type": "coinBrick", "transform": { "x": 3040, "y": 420, "rotation": 0, "scaleX": 26, "scaleY": 26 } },
+
+    {
+      "id": "walkerA",
+      "type": "enemyWalker",
+      "transform": { "x": 560, "y": 520, "rotation": 0, "scaleX": 1, "scaleY": 1 },
+      "behaviors": [{ "type": "patrolChase", "mode": "ground", "patrolMinX": 200, "patrolMaxX": 700, "patrolSpeed": 64, "chaseSpeed": 118, "gravity": 1700, "maxFallSpeed": 980 }]
+    },
+    {
+      "id": "walkerB",
+      "type": "enemyWalker",
+      "transform": { "x": 1260, "y": 520, "rotation": 0, "scaleX": 1, "scaleY": 1 },
+      "behaviors": [{ "type": "patrolChase", "mode": "ground", "patrolMinX": 980, "patrolMaxX": 1480, "patrolSpeed": 66, "chaseSpeed": 118, "gravity": 1700, "maxFallSpeed": 980 }]
+    },
+    {
+      "id": "walkerC",
+      "type": "enemyWalker",
+      "transform": { "x": 2280, "y": 520, "rotation": 0, "scaleX": 1, "scaleY": 1 },
+      "behaviors": [{ "type": "patrolChase", "mode": "ground", "patrolMinX": 2000, "patrolMaxX": 2700, "patrolSpeed": 68, "chaseSpeed": 120, "gravity": 1700, "maxFallSpeed": 980 }]
+    },
+
+    { "id": "goal", "type": "goalFlag", "transform": { "x": 3460, "y": 420, "rotation": 0, "scaleX": 12, "scaleY": 300 } },
+    { "id": "killPlane", "type": "deathZone", "transform": { "x": 1800, "y": 760, "rotation": 0, "scaleX": 4200, "scaleY": 200 } },
+    { "type": "playerHero", "id": "player", "transform": { "x": 120, "y": 480, "rotation": 0, "scaleX": 1, "scaleY": 1 } },
+    {
+      "id": "mainCamera",
+      "plugin": "none",
+      "transform": { "x": 0, "y": 0, "rotation": 0, "scaleX": 1, "scaleY": 1 },
+      "camera": { "followMetaName": "player", "smoothSpeed": 10, "boundLeft": 120, "boundRight": 3460, "boundTop": 80, "boundBottom": 540 }
+    }
+  ]
+}

@@ -1,150 +1,28 @@
-:root {
-  color-scheme: dark;
-  font-family: system-ui, 'Segoe UI', Roboto, sans-serif;
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
 }
 
 html,
 body {
-  height: 100%;
   margin: 0;
-  background: #070b16;
-  color: #e5e7eb;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #1a1a2e;
 }
 
 #app {
-  position: relative;
+  width: 100%;
   height: 100%;
-}
-
-#game {
-  position: absolute;
-  inset: 0;
-}
-
-#game-shell {
-  position: absolute;
-  inset: 0;
-}
-
-#game-shell.mobile-shell {
-  --vw: var(--game-view-width, 390);
-  --vh: var(--game-view-height, 844);
-  width: min(100vw, calc(100dvh * (var(--vw) / var(--vh))));
-  height: min(100dvh, calc(100vw * (var(--vh) / var(--vw))));
-  left: 50%;
-  top: 50%;
-  transform: translate(-50%, -50%);
-  border-left: 1px solid rgba(255, 255, 255, 0.08);
-  border-right: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.03), 0 16px 38px rgba(0, 0, 0, 0.42);
-}
-
-canvas {
-  display: block;
-}
-
-#hud {
-  position: absolute;
-  top: 14px;
-  left: 14px;
-  z-index: 10;
-  min-width: 360px;
-  padding: 12px 14px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 14px;
-  background: linear-gradient(170deg, rgba(10, 15, 35, 0.85), rgba(6, 10, 24, 0.78));
-  backdrop-filter: blur(8px);
-  box-shadow:
-    0 8px 24px rgba(0, 0, 0, 0.4),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.05);
-}
-
-#hud.hud-platformer {
-  border-color: rgba(59, 130, 246, 0.55);
-}
-
-#hud.hud-shooter {
-  border-color: rgba(239, 68, 68, 0.55);
-}
-
-#hud .hud-top {
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-#hud .title {
-  font-weight: 700;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  font-size: 12px;
-  color: #c7d2fe;
-  text-shadow: 0 1px 8px rgba(99, 102, 241, 0.45);
-}
-
-#hud .subtitle {
-  font-size: 11px;
-  color: rgba(229, 231, 235, 0.65);
-}
-
-#hud .help {
-  font-size: 12px;
-  color: rgba(229, 231, 235, 0.78);
-  margin-bottom: 8px;
-}
-
-#hud b {
-  color: #f8fafc;
-}
-
-#hud .stats {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-#hud .chip {
-  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 5px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: rgba(15, 23, 42, 0.8);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+  justify-content: center;
 }
 
-#hud .chip .label {
-  font-size: 11px;
-  letter-spacing: 0.3px;
-  text-transform: uppercase;
-  color: rgba(229, 231, 235, 0.72);
-}
-
-#hud .chip .value {
-  font-size: 13px;
-  font-weight: 700;
-  color: #fff;
-}
-
-#hud .chip-health {
-  border-color: rgba(34, 197, 94, 0.5);
-  background: linear-gradient(180deg, rgba(22, 101, 52, 0.45), rgba(20, 83, 45, 0.25));
-}
-
-#hud .chip-coins {
-  border-color: rgba(245, 158, 11, 0.55);
-  background: linear-gradient(180deg, rgba(180, 83, 9, 0.45), rgba(120, 53, 15, 0.25));
-}
-
-#hud .chip-enemy {
-  border-color: rgba(239, 68, 68, 0.55);
-  background: linear-gradient(180deg, rgba(153, 27, 27, 0.45), rgba(127, 29, 29, 0.25));
-}
-
-#hud .chip-score {
-  border-color: rgba(59, 130, 246, 0.58);
-  background: linear-gradient(180deg, rgba(30, 64, 175, 0.45), rgba(30, 58, 138, 0.25));
+#app canvas {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
 }
