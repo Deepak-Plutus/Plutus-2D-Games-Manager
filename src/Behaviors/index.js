@@ -18,7 +18,7 @@ import { PersistBehavior } from './PersistBehavior.js';
 import { PhysicsBehavior } from './PhysicsBehavior.js';
 import { PinBehavior } from './PinBehavior.js';
 import { PlatformBehavior } from './PlatformBehavior.js';
-import { RotateBehavior } from './RotateBehavior.js';
+import { RotateBehavior } from './rotateBehavior.js';
 import { ScrollToBehavior } from './ScrollToBehavior.js';
 import { SineBehavior } from './SineBehavior.js';
 import { SolidBehavior } from './SolidBehavior.js';
