@@ -20,19 +20,38 @@ function vibrantTileColors(value) {
   }
   /** @type {Record<number, { bg: number, stroke: number }>} */
   const map = {
-    2: { bg: 0x9e0142, stroke: 0x6e0130 },
-    4: { bg: 0xd53e4f, stroke: 0xa02e3c },
-    8: { bg: 0xf46d43, stroke: 0xc24e32 },
-    16: { bg: 0xfdae61, stroke: 0xd4893a },
-    32: { bg: 0xfee08b, stroke: 0xd4a84a },
-    64: { bg: 0xffffbf, stroke: 0xb5a85a },
-    128: { bg: 0xe6f598, stroke: 0x7a9f4a },
-    256: { bg: 0xabdda4, stroke: 0x5a9a72 },
-    512: { bg: 0x66c2a5, stroke: 0x2d7a62 },
-    1024: { bg: 0x3288bd, stroke: 0x1a5f7a },
-    2048: { bg: 0x5e4fa2, stroke: 0x3d3570 },
+    2: { bg: 0xff6b6b, stroke: 0xd94848 },
+    4: { bg: 0xff8e3c, stroke: 0xcc6b2b },
+    8: { bg: 0xffbe0b, stroke: 0xcc9809 },
+    16: { bg: 0xa8e063, stroke: 0x7eb64a },
+    32: { bg: 0x4cd964, stroke: 0x2faa48 },
+    64: { bg: 0x2ec4b6, stroke: 0x209387 },
+    128: { bg: 0x00b4d8, stroke: 0x0284a8 },
+    256: { bg: 0x3a86ff, stroke: 0x2d63bf },
+    512: { bg: 0x6a4cff, stroke: 0x4f39c5 },
+    1024: { bg: 0x9d4edd, stroke: 0x7539a6 },
+    2048: { bg: 0xff2e93, stroke: 0xc21f6f },
   };
   return map[tier] ?? map[2048];
+}
+
+/**
+ * Pick readable number color from tile background luminance.
+ * @param {number} bgColor 0xRRGGBB
+ * @returns {string}
+ */
+function tileTextColor(bgColor) {
+  const r = (bgColor >> 16) & 0xff;
+  const g = (bgColor >> 8) & 0xff;
+  const b = bgColor & 0xff;
+  const toLinear = (v) => {
+    const s = v / 255;
+    return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+  };
+  const l = 0.2126 * toLinear(r) + 0.7152 * toLinear(g) + 0.0722 * toLinear(b);
+  const contrastWithWhite = (1.0 + 0.05) / (l + 0.05);
+  const contrastWithDark = (l + 0.05) / (0.05 + 0.05);
+  return contrastWithDark >= contrastWithWhite ? '#111827' : '#ffffff';
 }
 
 /** Light purple grid tray + darker purple borders; inner fill is the lightest shade. */
@@ -289,7 +308,7 @@ export class Game2048Game extends BaseSystem {
     /** @type {import('pixi.js').Container | null} */
     this._boardFrameRoot = null;
     /** @type {import('pixi.js').Container | null} */
-    this._gridCellSlotsRoot = null;
+    this._gridCellEntityGroup = null;
     /** @type {import('../ECS/World.js').World | null} */
     this._world = null;
 
@@ -318,6 +337,35 @@ export class Game2048Game extends BaseSystem {
   }
 
   /**
+   * Recompute responsive 2048 layout based on viewport:
+   * top 5% gap, panel 30%, panel→grid gap 10%, grid 50%, bottom 5% gap.
+   * Keeps integer sizes/positions to reduce blur.
+   * @param {number} viewW
+   * @param {number} viewH
+   */
+  _reflowResponsiveLayout(viewW, viewH) {
+    const vw = Math.max(320, Math.floor(viewW));
+    const vh = Math.max(480, Math.floor(viewH));
+    const topGap = Math.floor(vh * 0.05);
+    const panelH = Math.floor(vh * 0.3);
+    const panelGridGap = Math.floor(vh * 0.1);
+    const gridBandH = Math.floor(vh * 0.5);
+    const centerX = Math.floor(vw / 2);
+    const centerY = topGap + panelH + panelGridGap + Math.floor(gridBandH / 2);
+
+    const maxGridW = Math.floor(vw * 0.9);
+    const maxGridH = Math.floor(gridBandH * 0.92);
+    const gridSize = Math.max(220, Math.min(maxGridW, maxGridH));
+    const gap = Math.max(6, Math.round(gridSize * 0.03));
+    const cell = Math.max(28, Math.floor((gridSize - 3 * gap) / 4));
+
+    this.boardCenterX = centerX;
+    this.boardCenterY = centerY;
+    this.gap = gap;
+    this.cellSize = cell;
+  }
+
+  /**
    * @param {Record<string, unknown>} options merged `systems.game2048` + optional `game2048` root
    */
   configure(options = {}) {
@@ -331,9 +379,11 @@ export class Game2048Game extends BaseSystem {
     if (options.winValue != null) this.winValue = Number(options.winValue) || 2048;
     if (this._goalValueText) this._goalValueText.text = String(this.winValue);
     if (this._stage) {
+      this._reflowResponsiveLayout(this._layoutW, this._layoutH);
       this._syncBoardFrame();
-      this._syncGridCellSlots();
-      this._hideGridCellSprites();
+      this._syncGridCellEntityViews();
+      this._syncEntityTransformsToGrid();
+      this._syncAllLabels();
     }
   }
 
@@ -348,6 +398,11 @@ export class Game2048Game extends BaseSystem {
     this._layoutH = h;
     this._inputCoordinator = inputCoordinator;
     this._inputHub = inputHub;
+    this._reflowResponsiveLayout(w, h);
+    this._syncBoardFrame();
+    this._syncGridCellEntityViews();
+    this._syncEntityTransformsToGrid();
+    this._syncAllLabels();
     this._bindDrag();
   }
 
@@ -369,14 +424,27 @@ export class Game2048Game extends BaseSystem {
     this._uiRoot = uiRoot;
     if (!uiRoot) return;
     uiRoot.sortableChildren = true;
+    this._reflowResponsiveLayout(viewW, viewH);
 
-    const marginX = 16;
-    const panelW = Math.max(300, Math.min(viewW - marginX * 2, 680));
-    const gapAboveGrid = 36;
-    const gridTop = this._gridTopY();
-    const panelH = 124;
-    let top = gridTop - gapAboveGrid - panelH;
-    if (top < 10) top = 10;
+    if (this._headerRoot) {
+      this._headerRoot.parent?.removeChild(this._headerRoot);
+      this._headerRoot.destroy({ children: true });
+      this._headerRoot = null;
+    }
+    if (this._pauseOverlayRoot) {
+      this._pauseOverlayRoot.parent?.removeChild(this._pauseOverlayRoot);
+      this._pauseOverlayRoot.destroy({ children: true });
+      this._pauseOverlayRoot = null;
+    }
+
+    const isMobileWidth = viewW <= 768;
+    const marginX = isMobileWidth ? Math.floor(viewW * 0.05) : 16;
+    const desktopCap = 760;
+    const panelW = isMobileWidth
+      ? Math.max(280, Math.floor(viewW - marginX * 2))
+      : Math.max(280, Math.min(viewW - marginX * 2, Math.floor(viewW * 0.78), desktopCap));
+    const panelH = Math.max(120, Math.floor(viewH * 0.3));
+    const top = Math.floor(viewH * 0.05);
     const left = Math.max(marginX, (viewW - panelW) / 2);
 
     const headerRoot = new Container();
@@ -388,7 +456,8 @@ export class Game2048Game extends BaseSystem {
     addGamePanelLayers(headerRoot, panelW, panelH, 16, 0);
 
     const hPad = 12;
-    const rowControlsY = 44;
+    const rowControlsY = Math.max(40, Math.floor(panelH * 0.34));
+    const statValueFontSize = 20;
 
     const pauseBtn = makePixiButton('||', 40, 32, () => this._openPause(), {
       fontSize: 14,
@@ -426,7 +495,7 @@ export class Game2048Game extends BaseSystem {
       style: {
         ...UI_FONT,
         fill: 0x0e7490,
-        fontSize: 20,
+        fontSize: statValueFontSize,
         fontWeight: '800',
         dropShadow: {
           alpha: 0.35,
@@ -445,7 +514,7 @@ export class Game2048Game extends BaseSystem {
       style: {
         ...UI_FONT,
         fill: 0x5b21b6,
-        fontSize: 20,
+        fontSize: Math.max(16, Math.floor(panelH * 0.16)),
         fontWeight: '800',
         letterSpacing: 0.8,
         align: 'center',
@@ -490,7 +559,7 @@ export class Game2048Game extends BaseSystem {
       style: {
         ...UI_FONT,
         fill: 0xd97706,
-        fontSize: 20,
+        fontSize: statValueFontSize,
         fontWeight: '800',
         dropShadow: {
           alpha: 0.35,
@@ -508,15 +577,15 @@ export class Game2048Game extends BaseSystem {
 
     const instructions = new Text({
       text:
-        '• Arrows / WASD / drag — slide tiles; identical tiles merge and add to score\n' +
-        '• Reach the goal tile; a full board with no moves ends the game',
+        '• Swipe (or use arrow keys) to move all tiles.\n' +
+        '• Merge matching tiles to reach 2048.',
       style: {
         ...UI_FONT,
         fill: 0x475569,
-        fontSize: 11.5,
-        lineHeight: 17,
+        fontSize: Math.max(9, Math.floor(panelH * 0.064)),
+        lineHeight: Math.max(12, Math.floor(panelH * 0.1)),
         wordWrap: true,
-        wordWrapWidth: panelW - hPad * 2,
+        wordWrapWidth: panelW - hPad * 2 - 24,
         align: 'center',
         dropShadow: {
           alpha: 0.2,
@@ -527,8 +596,11 @@ export class Game2048Game extends BaseSystem {
         },
       },
     });
+    const statsBottomY = Math.max(scoreValue.y + scoreValue.height, goalValue.y + goalValue.height);
+    const statsToInstructionsGap = Math.max(10, Math.floor(panelH * 0.08));
+    const instructionsY = Math.max(64, Math.floor(panelH * 0.52), Math.ceil(statsBottomY + statsToInstructionsGap));
     instructions.anchor.set(0.5, 0);
-    instructions.position.set(panelW / 2, 78);
+    instructions.position.set(panelW / 2, instructionsY);
     instructions.zIndex = 8;
 
     headerRoot.addChild(scoreLabel);
@@ -726,9 +798,9 @@ export class Game2048Game extends BaseSystem {
     this._world = world;
     this._registry = registry;
     this._stage = stage;
+    this._reflowResponsiveLayout(this._layoutW, this._layoutH);
     this._syncBoardFrame();
-    this._syncGridCellSlots();
-    this._hideGridCellSprites();
+    this._syncGridCellEntityViews();
     this._entityBuilder = entityBuilder;
     this._spawnOpts = {
       objectTypes: fullConfig.objectTypes ?? [],
@@ -742,6 +814,7 @@ export class Game2048Game extends BaseSystem {
     this._hideEndOverlay();
     this._resetGrid();
     this._spawnTwoTwos();
+    this._syncEntityTransformsToGrid();
     this._syncAllLabels();
     this._updateHud();
     this._syncPauseButtonState();
@@ -762,43 +835,40 @@ export class Game2048Game extends BaseSystem {
     return Math.min(12, Math.floor(this.cellSize * 0.2));
   }
 
-  /** Rounded-rect slots for the 4×4 grid (replaces sharp sprite quads). */
-  _syncGridCellSlots() {
+  /** Group + resize the 16 grid-cell sprite rectangles from config. */
+  _syncGridCellEntityViews() {
     const stage = this._stage;
-    if (!stage) return;
-    if (this._gridCellSlotsRoot) {
-      this._gridCellSlotsRoot.parent?.removeChild(this._gridCellSlotsRoot);
-      this._gridCellSlotsRoot.destroy({ children: true });
-      this._gridCellSlotsRoot = null;
+    const world = this._world;
+    if (!stage || !world) return;
+
+    if (!this._gridCellEntityGroup) {
+      const root = new Container();
+      root.zIndex = 3;
+      root.sortableChildren = true;
+      stage.addChild(root);
+      this._gridCellEntityGroup = root;
     }
-    const g = new Graphics();
-    const r = this._cellSlotCornerRadius();
-    const hw = this.cellSize / 2;
+
+    const ids = world.findEntityIdsByTag('gridCell');
+    let idx = 0;
     for (let row = 0; row < 4; row++) {
       for (let col = 0; col < 4; col++) {
+        const id = ids[idx++];
+        if (id == null) continue;
         const { x, y } = this.cellCenter(col, row);
-        const lx = x - hw;
-        const ly = y - hw;
-        g.roundRect(lx, ly, this.cellSize, this.cellSize, r);
-        g.fill({ color: GRID_PURPLE_INNER });
-        g.stroke({ width: 1.5, color: GRID_PURPLE_BORDER, alpha: 1 });
+        const tr = world.getComponent(id, COMPONENT_TRANSFORM);
+        if (tr) {
+          tr.x = x;
+          tr.y = y;
+          tr.scaleX = this.cellSize;
+          tr.scaleY = this.cellSize;
+        }
+        const view = world.getComponent(id, COMPONENT_DISPLAY)?.view;
+        if (view) {
+          if (view.parent !== this._gridCellEntityGroup) this._gridCellEntityGroup.addChild(view);
+          view.visible = true;
+        }
       }
-    }
-    const root = new Container();
-    root.zIndex = 3;
-    root.addChild(g);
-    stage.addChild(root);
-    this._gridCellSlotsRoot = root;
-  }
-
-  /** Config uses square sprites; we draw rounded slots instead. */
-  _hideGridCellSprites() {
-    const world = this._world;
-    if (!world) return;
-    const ids = world.findEntityIdsByTag('gridCell');
-    for (const id of ids) {
-      const disp = world.getComponent(id, COMPONENT_DISPLAY);
-      if (disp?.view) disp.view.visible = false;
     }
   }
 
@@ -833,9 +903,26 @@ export class Game2048Game extends BaseSystem {
     const s = this._step();
     const ox = this.boardCenterX;
     const oy = this.boardCenterY;
-    const x = ox + (col - 1.5) * s;
-    const y = oy + (row - 1.5) * s;
+    const x = Math.round(ox + (col - 1.5) * s);
+    const y = Math.round(oy + (row - 1.5) * s);
     return { x, y };
+  }
+
+  /** Keep existing spawned tiles aligned to current responsive grid. */
+  _syncEntityTransformsToGrid() {
+    const world = this._world;
+    if (!world) return;
+    for (let r = 0; r < 4; r++) {
+      for (let c = 0; c < 4; c++) {
+        const id = this._entityAt[r]?.[c];
+        if (id == null) continue;
+        const tr = world.getComponent(id, COMPONENT_TRANSFORM);
+        if (!tr) continue;
+        const { x, y } = this.cellCenter(c, r);
+        tr.x = x;
+        tr.y = y;
+      }
+    }
   }
 
   _queueMove(dir) {
@@ -957,7 +1044,7 @@ export class Game2048Game extends BaseSystem {
 
     text.text = String(value);
     text.style.fontSize = fs;
-    text.style.fill = '#ffffff';
+    text.style.fill = tileTextColor(colors.bg);
     text.style.fontWeight = '800';
     text.style.stroke = { width: 0 };
     text.style.dropShadow = false;
@@ -990,7 +1077,11 @@ export class Game2048Game extends BaseSystem {
   }
 
   _syncAllLabels() {
+    if (!Array.isArray(this._entityAt) || !Array.isArray(this._values) || this._entityAt.length < 4 || this._values.length < 4) {
+      return;
+    }
     for (let r = 0; r < 4; r++) {
+      if (!Array.isArray(this._entityAt[r]) || !Array.isArray(this._values[r])) continue;
       for (let c = 0; c < 4; c++) {
         const id = this._entityAt[r][c];
         const v = this._values[r][c];
@@ -1124,6 +1215,8 @@ export class Game2048Game extends BaseSystem {
     const root = new Container();
     root.zIndex = 200;
     root.sortableChildren = true;
+    root.eventMode = 'static';
+    root.cursor = 'pointer';
 
     const dim = new Graphics();
     dim.rect(0, 0, w, h);
@@ -1193,7 +1286,7 @@ export class Game2048Game extends BaseSystem {
     sub.zIndex = 10;
 
     const hint = new Text({
-      text: 'Press R to play again',
+      text: 'Tap / click to play again',
       style: {
         ...UI_FONT,
         fill: 0x0e7490,
@@ -1214,6 +1307,7 @@ export class Game2048Game extends BaseSystem {
 
     card.addChild(title, sub, hint);
     root.addChild(dim, card);
+    root.on('pointertap', () => this._restartGame());
     ui.addChild(root);
     this._endOverlay = root;
     this._syncPauseButtonState();

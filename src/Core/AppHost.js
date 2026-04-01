@@ -78,6 +78,8 @@ export class AppHost {
       height: h,
       background: this._background,
       antialias: initialApp.antialias ?? DEFAULT_APP.antialias,
+      autoDensity: true,
+      resolution: Math.max(1, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1),
     });
 
     this.container.replaceChildren(this.app.canvas);
