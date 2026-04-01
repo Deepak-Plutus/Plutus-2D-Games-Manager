@@ -14,9 +14,9 @@
       "playerMetaName": "player",
       "hurtCooldown": 1.2,
       "showHud": true,
-      "gameOverMessage": "GAME OVER — You ran out of lives. Refresh the page to try again.",
+      "gameOverMessage": "GAME OVER!",
       "winCoinTarget": 0,
-      "winMessage": "YOU WIN — You reached the end point! Refresh the page to play again."
+      "winMessage": "YOU WIN"
     }
   },
   "platformerGame": {
@@ -156,6 +156,13 @@
       "collision": { "kind": "trigger", "width": 1, "height": 1, "offsetX": 0, "offsetY": 0 }
     },
     {
+      "id": "castleBlock",
+      "plugin": "Sprite",
+      "sprite": { "shape": "rect", "tint": 8421504, "anchorX": 0.5, "anchorY": 0.5 },
+      "layer": "Main",
+      "collision": { "kind": "solid", "width": 1, "height": 1, "offsetX": 0, "offsetY": 0 }
+    },
+    {
       "id": "deathZone",
       "plugin": "Sprite",
       "sprite": { "shape": "rect", "tint": 1785743, "anchorX": 0.5, "anchorY": 0.5 },
@@ -193,6 +200,7 @@
     { "id": "ground3", "type": "floorSegment", "transform": { "x": 1880, "y": 580, "rotation": 0, "scaleX": 720, "scaleY": 40 } },
     { "id": "ground4", "type": "floorSegment", "transform": { "x": 2860, "y": 580, "rotation": 0, "scaleX": 960, "scaleY": 40 } },
     { "id": "groundGoal", "type": "floorSegment", "transform": { "x": 3500, "y": 580, "rotation": 0, "scaleX": 240, "scaleY": 40 } },
+    { "id": "groundCastle", "type": "floorSegment", "transform": { "x": 3660, "y": 580, "rotation": 0, "scaleX": 320, "scaleY": 40 } },
 
     { "id": "pipe1", "type": "pipeBlock", "transform": { "x": 760, "y": 500, "rotation": 0, "scaleX": 80, "scaleY": 120 } },
     { "id": "pipe2", "type": "pipeBlock", "transform": { "x": 1280, "y": 520, "rotation": 0, "scaleX": 80, "scaleY": 80 } },
@@ -239,13 +247,17 @@
     },
 
     { "id": "goal", "type": "goalFlag", "transform": { "x": 3460, "y": 420, "rotation": 0, "scaleX": 12, "scaleY": 300 } },
+    { "id": "castleBase", "type": "castleBlock", "layer": "Background", "transform": { "x": 3580, "y": 500, "rotation": 0, "scaleX": 150, "scaleY": 160 } },
+    { "id": "castleTowerL", "type": "castleBlock", "layer": "Background", "transform": { "x": 3520, "y": 450, "rotation": 0, "scaleX": 42, "scaleY": 220 } },
+    { "id": "castleTowerR", "type": "castleBlock", "layer": "Background", "transform": { "x": 3640, "y": 450, "rotation": 0, "scaleX": 42, "scaleY": 220 } },
+    { "id": "castleDoor", "type": "castleBlock", "layer": "Background", "transform": { "x": 3580, "y": 545, "rotation": 0, "scaleX": 34, "scaleY": 70 }, "sprite": { "shape": "rect", "tint": 2621440, "anchorX": 0.5, "anchorY": 0.5 } },
     { "id": "killPlane", "type": "deathZone", "transform": { "x": 1800, "y": 760, "rotation": 0, "scaleX": 4200, "scaleY": 200 } },
-    { "type": "playerHero", "id": "player", "transform": { "x": 120, "y": 480, "rotation": 0, "scaleX": 1, "scaleY": 1 } },
+    { "type": "playerHero", "id": "player", "transform": { "x": 96, "y": 480, "rotation": 0, "scaleX": 1, "scaleY": 1 } },
     {
       "id": "mainCamera",
       "plugin": "none",
       "transform": { "x": 0, "y": 0, "rotation": 0, "scaleX": 1, "scaleY": 1 },
-      "camera": { "followMetaName": "player", "smoothSpeed": 10, "boundLeft": 120, "boundRight": 3460, "boundTop": 80, "boundBottom": 540 }
+      "camera": { "followMetaName": "player", "smoothSpeed": 10, "offsetX": 220, "offsetY": -120, "boundLeft": 120, "boundRight": 3460, "boundTop": 80, "boundBottom": 540 }
     }
   ]
 }

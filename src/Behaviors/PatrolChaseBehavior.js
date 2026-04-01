@@ -15,7 +15,7 @@ export class PatrolChaseBehavior extends BaseBehavior {
   constructor(json = {}) {
     super(json);
     /** @private */
-    this._dir = 1;
+    this._dir = -1;
     /** @private */
     this._spawnX = null;
     /** @private */

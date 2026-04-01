@@ -20,7 +20,7 @@ export class LoadingScreen extends Container {
       style: {
         fill: 0xffffff,
         fontSize: 22,
-        fontFamily: 'system-ui, Segoe UI, sans-serif',
+        fontFamily: '"Bungee", system-ui, Segoe UI, sans-serif',
         align: 'center',
       },
     });
@@ -32,7 +32,7 @@ export class LoadingScreen extends Container {
       style: {
         fill: 0xaaaaaa,
         fontSize: 16,
-        fontFamily: 'system-ui, Segoe UI, sans-serif',
+        fontFamily: '"Bungee", system-ui, Segoe UI, sans-serif',
         align: 'center',
       },
     });
