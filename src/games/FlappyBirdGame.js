@@ -1,5 +1,10 @@
+import gsap from 'gsap';
 import { Container, Graphics, Sprite, Text } from 'pixi.js';
 import { BaseSystem } from '../Systems/BaseSystem.js';
+
+const SPIKE_FILL = 0x7c3aed;
+const SPIKE_TOOTH = 0x6d28d9;
+const SPIKE_STROKE = 0x4c1d95;
 
 /**
  * Flappy Bird-style game system (self-contained game-specific UI/logic).
@@ -21,6 +26,8 @@ export class FlappyBirdGame extends BaseSystem {
     this.birdRadius = 14;
     this.maxFallSpeed = 620;
     this.maxRiseSpeed = -440;
+    this.powerupSpawnChance = 0.3;
+    this.powerupRadius = 18;
 
     this._layoutW = 800;
     this._layoutH = 600;
@@ -32,21 +39,33 @@ export class FlappyBirdGame extends BaseSystem {
     this._flapUnsub = null;
 
     this._root = null;
+    this._spikesRoot = null;
+    this._spikeTop = null;
+    this._spikeBottom = null;
     this._pipesRoot = null;
     this._bird = null;
     this._scoreText = null;
+    this._scorePanel = null;
     this._ground = null;
     this._gameOverText = null;
+    this._startText = null;
+    this._spikeToothW = 16;
+    this._spikeScroll = 0;
 
     this._birdX = 220;
     this._birdY = 280;
     this._birdVY = 0;
     this._spawnT = 0;
     this._score = 0;
+    this._started = false;
     this._gameOver = false;
     this._pendingFlap = false;
     this._prevSpace = false;
-    /** @type {Array<{ x:number, gapY:number, passed:boolean, top:Graphics, bottom:Graphics }>} */
+    this._audioCtx = null;
+    this._audioReady = false;
+    /** @type {Array<{ top: Graphics, bottom: Graphics }>} */
+    this._pipePool = [];
+    /** @type {Array<{ x:number, gapY:number, passed:boolean, top:Graphics, bottom:Graphics, powerup?: { value:number, radius:number, root:Container, collected:boolean } }>} */
     this._pipes = [];
   }
 
@@ -66,6 +85,11 @@ export class FlappyBirdGame extends BaseSystem {
     if (options.birdRadius != null) this.birdRadius = Number(options.birdRadius) || this.birdRadius;
     if (options.maxFallSpeed != null) this.maxFallSpeed = Number(options.maxFallSpeed) || this.maxFallSpeed;
     if (options.maxRiseSpeed != null) this.maxRiseSpeed = Number(options.maxRiseSpeed) || this.maxRiseSpeed;
+    if (options.powerupSpawnChance != null) {
+      const chance = Number(options.powerupSpawnChance);
+      if (Number.isFinite(chance)) this.powerupSpawnChance = Math.max(0, Math.min(1, chance));
+    }
+    if (options.powerupRadius != null) this.powerupRadius = Math.max(10, Number(options.powerupRadius) || this.powerupRadius);
   }
 
   setRuntime(w, h, inputCoordinator, inputHub) {
@@ -73,7 +97,11 @@ export class FlappyBirdGame extends BaseSystem {
     this._layoutH = Number(h) || 600;
     this._inputCoordinator = inputCoordinator;
     this._inputHub = inputHub;
+    this._applyResponsiveMetrics();
     this._bindFlapInput();
+    this._rebuildScene();
+    this._createScoreUi();
+    this._refreshStartPrompt();
   }
 
   setScreenUi(uiRoot, viewW, viewH) {
@@ -93,6 +121,7 @@ export class FlappyBirdGame extends BaseSystem {
     if (!this._inputHub) return;
     const onDown = () => {
       this._pendingFlap = true;
+      this._ensureAudioReady();
     };
     this._inputHub.addEventListener('pointer:down', onDown);
     this._flapUnsub = () => this._inputHub?.removeEventListener('pointer:down', onDown);
@@ -100,23 +129,40 @@ export class FlappyBirdGame extends BaseSystem {
 
   _createScoreUi() {
     if (!this._uiRoot) return;
+    if (this._scorePanel) {
+      this._scorePanel.parent?.removeChild(this._scorePanel);
+      this._scorePanel.destroy();
+      this._scorePanel = null;
+    }
     if (this._scoreText) {
       this._scoreText.parent?.removeChild(this._scoreText);
       this._scoreText.destroy();
       this._scoreText = null;
     }
+    const panelW = Math.min(180, Math.max(112, Math.floor(this._layoutW * 0.26)));
+    const panelH = Math.min(56, Math.max(40, Math.floor(this._layoutH * 0.08)));
+    const topPad = Math.max(10, Math.floor(this._layoutH * 0.025));
+    const panel = new Graphics();
+    panel.roundRect(0, 0, panelW, panelH, 12);
+    panel.fill({ color: 0xeef2ff, alpha: 0.95 });
+    panel.stroke({ width: 2, color: 0x6366f1, alpha: 0.85 });
+    panel.position.set(Math.round((this._layoutW - panelW) / 2), topPad);
+    panel.zIndex = 119;
+    this._uiRoot.addChild(panel);
+    this._scorePanel = panel;
+
     const t = new Text({
       text: '0',
       style: {
         fontFamily: 'Segoe UI, system-ui, sans-serif',
         fontWeight: '800',
-        fontSize: 64,
-        fill: 0x22d3ee,
-        stroke: { width: 5, color: 0x7c3aed, join: 'round' },
+        fontSize: Math.max(22, Math.min(36, Math.floor(this._layoutH * 0.05))),
+        fill: 0x4f46e5,
+        stroke: { width: 3, color: 0xffffff, join: 'round' },
       },
     });
     t.anchor.set(0.5);
-    t.position.set(this._layoutW / 2, this._layoutH / 2);
+    t.position.set(Math.round(this._layoutW / 2), Math.round(topPad + panelH / 2));
     t.zIndex = 120;
     this._uiRoot.addChild(t);
     this._scoreText = t;
@@ -130,8 +176,22 @@ export class FlappyBirdGame extends BaseSystem {
   bootstrap(_world, registry, stage) {
     this._registry = registry;
     this._stage = stage;
+    this._applyResponsiveMetrics();
     this._rebuildScene();
     this._resetRound();
+  }
+
+  _applyResponsiveMetrics() {
+    this.groundHeight = Math.max(72, Math.floor(this._layoutH * 0.13));
+    const mobile = this._layoutW <= 768;
+    const leftRatio = mobile ? 0.22 : 0.26;
+    this._birdX = Math.round(this._layoutW * leftRatio);
+    this._birdRadius = Math.max(12, Math.floor(this._layoutW * 0.018));
+    this.pipeWidth = mobile
+      ? Math.max(72, Math.min(112, Math.floor(this._layoutW * 0.14)))
+      : Math.max(84, Math.min(104, Math.floor(this._layoutW * 0.075)));
+    const maxGap = Math.max(148, Math.floor((this._layoutH - this.groundHeight) * 0.42));
+    this.pipeGap = Math.max(140, Math.min(220, maxGap));
   }
 
   _rebuildScene() {
@@ -148,8 +208,15 @@ export class FlappyBirdGame extends BaseSystem {
     stage.addChild(root);
     this._root = root;
 
+    const spikesRoot = new Container();
+    spikesRoot.zIndex = 1;
+    root.addChild(spikesRoot);
+    this._spikesRoot = spikesRoot;
+    this._drawSpikeBands();
+
     const pipesRoot = new Container();
     pipesRoot.zIndex = 2;
+    pipesRoot.sortableChildren = true;
     root.addChild(pipesRoot);
     this._pipesRoot = pipesRoot;
 
@@ -165,6 +232,136 @@ export class FlappyBirdGame extends BaseSystem {
     bird.zIndex = 10;
     root.addChild(bird);
     this._bird = bird;
+  }
+
+  _drawSpikeBands() {
+    const root = this._spikesRoot;
+    if (!root) return;
+    if (!this._spikeTop) this._spikeTop = new Graphics();
+    if (!this._spikeBottom) this._spikeBottom = new Graphics();
+    const topBand = this._spikeTop;
+    const bottomBand = this._spikeBottom;
+    if (topBand.parent !== root) root.addChild(topBand);
+    if (bottomBand.parent !== root) root.addChild(bottomBand);
+    topBand.clear();
+    bottomBand.clear();
+
+    const spikeH = Math.max(16, Math.floor(this._layoutH * 0.04));
+    const toothW = Math.max(14, Math.floor(this._layoutW / 36));
+    this._spikeToothW = toothW;
+    const drawX = -toothW;
+    const drawW = this._layoutW + toothW * 2;
+    const teeth = Math.ceil(drawW / toothW) + 1;
+
+    for (let i = 0; i < teeth; i++) {
+      const x = drawX + i * toothW;
+      topBand.poly([x, 0, x + toothW / 2, spikeH - 2, x + toothW, 0]);
+      topBand.fill({ color: SPIKE_TOOTH, alpha: 0.95 });
+      topBand.stroke({ width: 1, color: SPIKE_STROKE, alpha: 0.7 });
+    }
+    topBand.stroke({ width: 2, color: SPIKE_STROKE, alpha: 0.9 });
+
+    const by = this._layoutH - this.groundHeight;
+    for (let i = 0; i < teeth; i++) {
+      const x = drawX + i * toothW;
+      bottomBand.poly([x, by, x + toothW / 2, by - spikeH + 2, x + toothW, by]);
+      bottomBand.fill({ color: SPIKE_TOOTH, alpha: 0.95 });
+      bottomBand.stroke({ width: 1, color: SPIKE_STROKE, alpha: 0.7 });
+    }
+    bottomBand.stroke({ width: 2, color: SPIKE_STROKE, alpha: 0.9 });
+
+  }
+
+  _acquirePipePairViews() {
+    const pair = this._pipePool.pop();
+    if (pair) return pair;
+    return { top: new Graphics(), bottom: new Graphics() };
+  }
+
+  /**
+   * @param {{ top: Graphics, bottom: Graphics }} pair
+   */
+  _releasePipePairViews(pair) {
+    pair.top.visible = false;
+    pair.bottom.visible = false;
+    pair.top.parent?.removeChild(pair.top);
+    pair.bottom.parent?.removeChild(pair.bottom);
+    pair.top.clear();
+    pair.bottom.clear();
+    this._pipePool.push(pair);
+  }
+
+  _acquirePowerupView() {
+    const root = new Container();
+    root.sortableChildren = true;
+    const ring = new Graphics();
+    ring.zIndex = 1;
+    const label = new Text({
+      text: '',
+      style: {
+        fontFamily: 'Segoe UI, system-ui, sans-serif',
+        fontSize: 14,
+        fontWeight: '800',
+        fill: 0xffffff,
+        stroke: { width: 2, color: 0x111827, join: 'round' },
+      },
+    });
+    label.anchor.set(0.5);
+    label.zIndex = 2;
+    root.addChild(ring);
+    root.addChild(label);
+    root.zIndex = 6;
+    return { root, ring, label, collected: false, value: 0, radius: this.powerupRadius };
+  }
+
+  _releasePowerupView(pu) {
+    gsap.killTweensOf(pu.root);
+    gsap.killTweensOf(pu.root.scale);
+    pu.root.visible = false;
+    pu.root.parent?.removeChild(pu.root);
+    pu.root.destroy({ children: true });
+  }
+
+  _ensureAudioReady() {
+    if (typeof window === 'undefined') return;
+    if (!this._audioCtx) {
+      const Ctx = window.AudioContext || window.webkitAudioContext;
+      if (!Ctx) return;
+      this._audioCtx = new Ctx();
+    }
+    if (this._audioCtx.state === 'suspended') this._audioCtx.resume();
+    this._audioReady = this._audioCtx.state === 'running';
+  }
+
+  _playPowerupSfx(positive) {
+    if (!this._audioCtx || !this._audioReady) return;
+    const ctx = this._audioCtx;
+    const now = ctx.currentTime;
+    const master = ctx.createGain();
+    master.gain.setValueAtTime(0.08, now);
+    master.connect(ctx.destination);
+
+    const makeTone = (freq, start, dur, type) => {
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = type;
+      o.frequency.setValueAtTime(freq, start);
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(0.35, start + 0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+      o.connect(g);
+      g.connect(master);
+      o.start(start);
+      o.stop(start + dur + 0.02);
+    };
+
+    if (positive) {
+      makeTone(660, now, 0.12, 'sine');
+      makeTone(990, now + 0.08, 0.18, 'triangle');
+    } else {
+      makeTone(330, now, 0.16, 'sawtooth');
+      makeTone(220, now + 0.12, 0.22, 'triangle');
+    }
   }
 
   _createBirdView() {
@@ -184,11 +381,12 @@ export class FlappyBirdGame extends BaseSystem {
   }
 
   _resetRound() {
-    this._birdX = Math.round(this._layoutW * 0.28);
+    this._applyResponsiveMetrics();
     this._birdY = Math.round(this._layoutH * 0.45);
     this._birdVY = 0;
     this._spawnT = 0;
     this._score = 0;
+    this._started = false;
     this._gameOver = false;
     this._pendingFlap = false;
     this._prevSpace = false;
@@ -196,11 +394,14 @@ export class FlappyBirdGame extends BaseSystem {
     this._gameOverText?.destroy();
     this._gameOverText = null;
     for (const p of this._pipes) {
-      p.top.destroy();
-      p.bottom.destroy();
+      this._releasePipePairViews({ top: p.top, bottom: p.bottom });
+      if (p.powerup) this._releasePowerupView(p.powerup);
     }
     this._pipes = [];
     this._scoreText && (this._scoreText.text = '0');
+    this._spikeScroll = 0;
+    if (this._spikesRoot) this._spikesRoot.x = 0;
+    this._refreshStartPrompt();
   }
 
   _spawnPipePair() {
@@ -211,7 +412,10 @@ export class FlappyBirdGame extends BaseSystem {
     const gapY = minY + Math.random() * Math.max(40, maxY - minY);
     const x = this._layoutW + this.pipeWidth;
 
-    const top = new Graphics();
+    const pair = this._acquirePipePairViews();
+    const top = pair.top;
+    top.visible = true;
+    top.clear();
     const topHeight = Math.max(36, gapY - this.pipeGap / 2);
     const capH = 34;
     const topStemH = Math.max(0, topHeight - capH);
@@ -221,7 +425,9 @@ export class FlappyBirdGame extends BaseSystem {
     top.fill({ color: 0x22c55e });
     top.position.set(x, 0);
 
-    const bottom = new Graphics();
+    const bottom = pair.bottom;
+    bottom.visible = true;
+    bottom.clear();
     const by = gapY + this.pipeGap / 2;
     const bh = this._layoutH - this.groundHeight - by;
     bottom.rect(8, capH, this.pipeWidth - 16, Math.max(0, bh - capH));
@@ -230,9 +436,55 @@ export class FlappyBirdGame extends BaseSystem {
     bottom.fill({ color: 0x22c55e });
     bottom.position.set(x, by);
 
+    /** @type {{ value:number, radius:number, root:Container, collected:boolean } | undefined} */
+    let powerup;
+    if (Math.random() < this.powerupSpawnChance && !this._wouldPowerupOverlap(x + this.pipeWidth / 2, gapY)) {
+      powerup = this._createPowerup();
+      powerup.root.position.set(x + this.pipeWidth / 2, gapY);
+      powerup.root.zIndex = 6;
+      root.addChild(powerup.root);
+    }
+
     root.addChild(top);
     root.addChild(bottom);
-    this._pipes.push({ x, gapY, passed: false, top, bottom });
+    this._pipes.push({ x, gapY, passed: false, top, bottom, powerup });
+  }
+
+  /**
+   * @param {number} x
+   * @param {number} y
+   */
+  _wouldPowerupOverlap(x, y) {
+    const minDist = this.powerupRadius * 2.2;
+    for (const p of this._pipes) {
+      const pu = p.powerup;
+      if (!pu || pu.collected) continue;
+      const px = p.x + this.pipeWidth / 2;
+      const py = p.gapY;
+      if (Math.hypot(px - x, py - y) < minDist) return true;
+    }
+    return false;
+  }
+
+  _randomPowerupValue() {
+    const magnitude = 1 + Math.floor(Math.random() * 20);
+    const sign = Math.random() < 0.7 ? 1 : -1;
+    return sign * magnitude;
+  }
+
+  _createPowerup() {
+    const value = this._randomPowerupValue();
+    const positive = value > 0;
+    const pu = this._acquirePowerupView();
+    pu.value = value;
+    pu.radius = this.powerupRadius;
+    pu.ring.clear();
+    pu.ring.circle(0, 0, pu.radius);
+    pu.ring.fill({ color: positive ? 0x22c55e : 0xef4444, alpha: 0.96 });
+    pu.ring.stroke({ width: 3, color: positive ? 0x166534 : 0x991b1b, alpha: 0.9 });
+    pu.label.text = `${value > 0 ? '+' : ''}${value}`;
+    pu.label.style.fontSize = Math.max(12, Math.floor(pu.radius * 0.9));
+    return pu;
   }
 
   _consumeFlap() {
@@ -243,6 +495,31 @@ export class FlappyBirdGame extends BaseSystem {
     const flap = this._pendingFlap || edgeSpace;
     this._pendingFlap = false;
     return flap;
+  }
+
+  _refreshStartPrompt() {
+    if (!this._uiRoot) return;
+    if (this._startText) {
+      this._startText.parent?.removeChild(this._startText);
+      this._startText.destroy();
+      this._startText = null;
+    }
+    if (this._started || this._gameOver) return;
+    const t = new Text({
+      text: 'Tap / click to play',
+      style: {
+        fontFamily: 'Segoe UI, system-ui, sans-serif',
+        fontSize: Math.max(22, Math.min(34, Math.floor(this._layoutH * 0.05))),
+        fontWeight: '800',
+        fill: 0x1d4ed8,
+        stroke: { width: 3, color: 0xffffff, join: 'round' },
+      },
+    });
+    t.anchor.set(0.5);
+    t.position.set(Math.round(this._layoutW / 2), Math.round(this._layoutH * 0.63));
+    t.zIndex = 125;
+    this._uiRoot.addChild(t);
+    this._startText = t;
   }
 
   _enterGameOver() {
@@ -265,6 +542,11 @@ export class FlappyBirdGame extends BaseSystem {
       this._uiRoot.addChild(t);
       this._gameOverText = t;
     }
+    if (this._startText) {
+      this._startText.parent?.removeChild(this._startText);
+      this._startText.destroy();
+      this._startText = null;
+    }
   }
 
   update(dt) {
@@ -273,6 +555,27 @@ export class FlappyBirdGame extends BaseSystem {
     if (this._gameOver) {
       if (this._consumeFlap()) this._resetRound();
       return;
+    }
+
+    if (!this._started) {
+      this._bird.position.set(this._birdX, this._birdY);
+      this._bird.rotation = 0;
+      if (this._consumeFlap()) {
+        this._started = true;
+        this._birdVY = this.flapVelocity;
+        if (this._startText) {
+          this._startText.parent?.removeChild(this._startText);
+          this._startText.destroy();
+          this._startText = null;
+        }
+      }
+      return;
+    }
+
+    if (this._spikesRoot) {
+      this._spikeScroll += this.pipeSpeed * dt;
+      const wrap = Math.max(1, this._spikeToothW);
+      this._spikesRoot.x = -Math.round(this._spikeScroll % wrap);
     }
 
     if (this._consumeFlap()) this._birdVY = this.flapVelocity;
@@ -303,6 +606,37 @@ export class FlappyBirdGame extends BaseSystem {
       p.x -= this.pipeSpeed * dt;
       p.top.x = p.x;
       p.bottom.x = p.x;
+      if (p.powerup && !p.powerup.collected) {
+        const px = p.x + this.pipeWidth / 2;
+        const py = p.gapY;
+        p.powerup.root.zIndex = 6;
+        p.powerup.root.visible = true;
+        p.powerup.root.alpha = 1;
+        p.powerup.root.position.set(px, py);
+        if (Math.hypot(this._birdX - px, this._birdY - py) <= birdR + p.powerup.radius) {
+          p.powerup.collected = true;
+          this._score += p.powerup.value;
+          if (this._scoreText) this._scoreText.text = String(this._score);
+          const positive = p.powerup.value > 0;
+          this._playPowerupSfx(positive);
+          p.powerup.root.zIndex = 12;
+          gsap.killTweensOf(p.powerup.root);
+          gsap.killTweensOf(p.powerup.root.scale);
+          gsap.to(p.powerup.root.scale, {
+            x: 1.35,
+            y: 1.35,
+            duration: 0.45,
+            ease: 'power1.out',
+          });
+          gsap.to(p.powerup.root, {
+            y: py - Math.max(30, this.powerupRadius * 2.2),
+            alpha: 0,
+            duration: 0.45,
+            ease: 'power1.out',
+            onComplete: () => this._releasePowerupView(p.powerup),
+          });
+        }
+      }
 
       const withinX = this._birdX + birdR > p.x && this._birdX - birdR < p.x + this.pipeWidth;
       const gapTop = p.gapY - this.pipeGap / 2;
@@ -322,8 +656,8 @@ export class FlappyBirdGame extends BaseSystem {
     }
     for (let i = remove.length - 1; i >= 0; i--) {
       const p = this._pipes[remove[i]];
-      p.top.destroy();
-      p.bottom.destroy();
+      this._releasePipePairViews({ top: p.top, bottom: p.bottom });
+      if (p.powerup && !p.powerup.collected) this._releasePowerupView(p.powerup);
       this._pipes.splice(remove[i], 1);
     }
   }

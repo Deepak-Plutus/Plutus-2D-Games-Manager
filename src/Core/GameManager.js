@@ -111,11 +111,26 @@ export class GameManager {
         : null
     this.behaviorEvents = new BehaviorEventHub(bc)
 
+    const appBlock = /** @type {Record<string, unknown>} */ (config.app ?? {})
     loading.setProgress(18, 'Applying app settings...')
-    this.host.applyAppConfig(
-      /** @type {Record<string, unknown>} */ (config.app ?? {})
-    )
+    this.host.applyAppConfig(appBlock)
     loading.resize(this.host.width, this.host.height)
+    const isFullscreenConfig =
+      appBlock.fullscreen === true ||
+      (typeof appBlock.width === 'string' &&
+        typeof appBlock.height === 'string' &&
+        String(appBlock.width).trim().toLowerCase() === 'fullscreen' &&
+        String(appBlock.height).trim().toLowerCase() === 'fullscreen')
+    /** @type {(() => void) | null} */
+    let detachLoadingResize = null
+    if (isFullscreenConfig && typeof window !== 'undefined') {
+      const onLoadingResize = () => {
+        this.host.applyAppConfig(appBlock)
+        loading.resize(this.host.width, this.host.height)
+      }
+      window.addEventListener('resize', onLoadingResize, { passive: true })
+      detachLoadingResize = () => window.removeEventListener('resize', onLoadingResize)
+    }
 
     this.pointer.attach(app.canvas, this.host.width, this.host.height)
     app.canvas.style.touchAction = 'none'
@@ -217,6 +232,7 @@ export class GameManager {
         }
       )
     } catch (e) {
+      if (detachLoadingResize) detachLoadingResize()
       loading.showError(e instanceof Error ? e.message : String(e))
       return
     }
@@ -252,15 +268,8 @@ export class GameManager {
       }
     }
 
+    if (detachLoadingResize) detachLoadingResize()
     loading.hide()
-
-    const appBlock = /** @type {Record<string, unknown>} */ (config.app ?? {})
-    const isFullscreenConfig =
-      appBlock.fullscreen === true ||
-      (typeof appBlock.width === 'string' &&
-        typeof appBlock.height === 'string' &&
-        String(appBlock.width).trim().toLowerCase() === 'fullscreen' &&
-        String(appBlock.height).trim().toLowerCase() === 'fullscreen')
     if (isFullscreenConfig && typeof window !== 'undefined') {
       window.addEventListener(
         'resize',

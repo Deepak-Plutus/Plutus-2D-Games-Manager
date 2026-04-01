@@ -51,12 +51,23 @@ export class LoadingScreen extends Container {
   redraw() {
     const w = this._w;
     const h = this._h;
+    const minSide = Math.max(1, Math.min(w, h));
+    const labelSize = Math.max(16, Math.min(34, Math.floor(minSide * 0.055)));
+    const percentSize = Math.max(12, Math.min(22, Math.floor(minSide * 0.04)));
+    const lineGap = Math.max(12, Math.floor(minSide * 0.028));
     this._bg.clear();
     this._bg.rect(0, 0, w, h);
     this._bg.fill({ color: 0x000000, alpha: 1 });
 
-    this._label.position.set(w / 2, h / 2 - 14);
-    this._percent.position.set(w / 2, h / 2 + 18);
+    this._label.style.fontSize = labelSize;
+    this._label.style.wordWrap = true;
+    this._label.style.wordWrapWidth = Math.max(220, w - 48);
+    this._percent.style.fontSize = percentSize;
+    this._percent.style.wordWrap = true;
+    this._percent.style.wordWrapWidth = Math.max(220, w - 48);
+
+    this._label.position.set(Math.round(w / 2), Math.round(h / 2 - lineGap));
+    this._percent.position.set(Math.round(w / 2), Math.round(h / 2 + lineGap));
   }
 
   /**

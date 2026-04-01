@@ -1,8 +1,9 @@
 {
   "broadcastChannel": "plutus-flappy-bird",
   "app": {
-    "width": 800,
-    "height": 680,
+    "fullscreen": true,
+    "width": "fullscreen",
+    "height": "fullscreen",
     "background": "#dbeafe"
   },
   "systems": {
