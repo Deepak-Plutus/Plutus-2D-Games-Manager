@@ -9,8 +9,11 @@ import {
   COMPONENT_TRANSFORM
 } from '../Components/index.js'
 
-/** UI text for this game: load Bungee via index.html (Google Fonts). */
+/** UI text for this game: Bungee is loaded by this system at runtime. */
 const BUNGEE_FONT = '"Bungee", cursive'
+const STEALTH_CAMERA_ZOOM_DESKTOP = 0.82
+const STEALTH_CAMERA_ZOOM_MOBILE = 0.7
+const STEALTH_CAMERA_LEFT_BIAS_RATIO = 0.22
 
 export class StealthAssassinGame extends BaseSystem {
   static inputRequirements = {
@@ -268,9 +271,17 @@ export class StealthAssassinGame extends BaseSystem {
     this._inputCoordinator = inputCoordinator
   }
 
+  _isMobileLayout () {
+    const shortSide = Math.min(this._viewW, this._viewH)
+    return shortSide <= 820 || this._viewW <= 980
+  }
+
   _ensureBungeeFontLoaded () {
     if (typeof document === 'undefined') return
-    if (document.querySelector('link[data-font="bungee-stealth-assassin"]')) return
+    if (document.querySelector('link[data-font="bungee-stealth-assassin"]')) {
+      this._watchBungeeFontReady()
+      return
+    }
 
     const preconnectApi = document.createElement('link')
     preconnectApi.rel = 'preconnect'
@@ -290,11 +301,59 @@ export class StealthAssassinGame extends BaseSystem {
     css.href = 'https://fonts.googleapis.com/css2?family=Bungee&display=swap'
     css.setAttribute('data-font', 'bungee-stealth-assassin')
     document.head.appendChild(css)
+    this._watchBungeeFontReady()
+  }
+
+  _watchBungeeFontReady () {
+    if (typeof document === 'undefined') return
+    const fonts = document.fonts
+    if (!fonts?.load) return
+    fonts
+      .load('700 28px Bungee')
+      .then(() => {
+        if (!this._uiRoot) return
+        if (this._hudRoot?.parent) this._hudRoot.parent.removeChild(this._hudRoot)
+        this._hudRoot = null
+        this._hudHealthValue = null
+        this._hudTargetsValue = null
+        this._hudKillsValue = null
+      })
+      .catch(() => {})
+  }
+
+  _installInteractionGuards () {
+    if (typeof document === 'undefined' || typeof window === 'undefined') return
+    if (window.__stealthInteractionGuardsInstalled) return
+    window.__stealthInteractionGuardsInstalled = true
+
+    document.addEventListener('contextmenu', ev => ev.preventDefault())
+
+    window.addEventListener(
+      'wheel',
+      ev => {
+        if (ev.ctrlKey || ev.metaKey) ev.preventDefault()
+      },
+      { passive: false }
+    )
+
+    const blockGesture = ev => ev.preventDefault()
+    document.addEventListener('gesturestart', blockGesture, { passive: false })
+    document.addEventListener('gesturechange', blockGesture, { passive: false })
+    document.addEventListener('gestureend', blockGesture, { passive: false })
+
+    document.addEventListener(
+      'touchmove',
+      ev => {
+        if (ev.touches?.length > 1) ev.preventDefault()
+      },
+      { passive: false }
+    )
   }
 
   bootstrap (world, registry, stage, entityBuilder, fullConfig) {
     if (!this.enabled) return
     this._ensureBungeeFontLoaded()
+    this._installInteractionGuards()
     this._world = world
     this._registry = registry
     this._stage = stage
@@ -486,13 +545,20 @@ export class StealthAssassinGame extends BaseSystem {
     const root = new Container()
     root.zIndex = 200
 
+    const isMobile = this._isMobileLayout()
+    const margin = isMobile ? 10 : 14
+    const topY = isMobile ? 8 : 12
+    const healthW = isMobile ? Math.min(150, this._viewW * 0.4) : 168
+    const healthH = isMobile ? 72 : 78
+    const smallW = isMobile ? Math.min(132, this._viewW * 0.34) : 148
+    const smallH = isMobile ? 58 : 64
+    const smallGap = isMobile ? 8 : 10
+
     // Left: Health
-    const healthW = 168
-    const healthH = 70
     const healthPanel = new Container()
-    healthPanel.position.set(14, 12)
+    healthPanel.position.set(margin, topY)
     const healthBg = new Graphics()
-    healthBg.roundRect(0, 0, healthW, healthH, 14)
+    healthBg.roundRect(0, 0, healthW, healthH, isMobile ? 12 : 14)
     healthBg.fill({ color: 0x134e4a, alpha: 0.94 })
     healthBg.stroke({ width: 3, color: 0x2dd4bf, alpha: 1 })
     const healthAccent = new Graphics()
@@ -504,37 +570,39 @@ export class StealthAssassinGame extends BaseSystem {
       text: 'Health',
       style: {
         fill: 0x99f6e4,
-        fontSize: 13,
+        fontSize: isMobile ? 11 : 13,
         fontFamily: BUNGEE_FONT,
-        align: 'center'
+        align: 'center',
+        padding: 6
       }
     })
     healthLabel.anchor.set(0.5, 0)
-    healthLabel.position.set(healthW * 0.5, 14)
+    healthLabel.position.set(healthW * 0.5, isMobile ? 13 : 18)
     const healthValue = new Text({
       text: String(Math.max(0, Math.ceil(this._playerHp))),
       style: {
         fill: 0xffffff,
-        fontSize: 28,
+        fontSize: isMobile ? 22 : 28,
         fontFamily: BUNGEE_FONT,
-        align: 'center'
+        align: 'center',
+        padding: 6
       }
     })
     healthValue.anchor.set(0.5, 0)
-    healthValue.position.set(healthW * 0.5, 34)
+    healthValue.position.set(healthW * 0.5, isMobile ? 30 : 40)
     healthPanel.addChild(healthLabel)
     healthPanel.addChild(healthValue)
 
     // Right: Targets (top) & Kills (below), separate panels
-    const rightW = 148
-    const rightH = 64
-    const rightGap = 10
-    const rightX = this._viewW - rightW - 16
+    const rightW = smallW
+    const rightH = smallH
+    const rightGap = smallGap
+    const rightX = this._viewW - rightW - margin
 
     const targetsPanel = new Container()
-    targetsPanel.position.set(rightX, 12)
+    targetsPanel.position.set(rightX, topY)
     const targetsBg = new Graphics()
-    targetsBg.roundRect(0, 0, rightW, rightH, 14)
+    targetsBg.roundRect(0, 0, rightW, rightH, isMobile ? 12 : 14)
     targetsBg.fill({ color: 0x3730a3, alpha: 0.94 })
     targetsBg.stroke({ width: 3, color: 0xc4b5fd, alpha: 1 })
     const targetsAccent = new Graphics()
@@ -546,31 +614,33 @@ export class StealthAssassinGame extends BaseSystem {
       text: 'Targets',
       style: {
         fill: 0xe9d5ff,
-        fontSize: 12,
+        fontSize: isMobile ? 10 : 12,
         fontFamily: BUNGEE_FONT,
-        align: 'center'
+        align: 'center',
+        padding: 4
       }
     })
     targetsLabel.anchor.set(0.5, 0)
-    targetsLabel.position.set(rightW * 0.5, 12)
+    targetsLabel.position.set(rightW * 0.5, isMobile ? 10 : 12)
     const targetsValue = new Text({
       text: '0',
       style: {
         fill: 0xfef08a,
-        fontSize: 26,
+        fontSize: isMobile ? 20 : 26,
         fontFamily: BUNGEE_FONT,
-        align: 'center'
+        align: 'center',
+        padding: 5
       }
     })
     targetsValue.anchor.set(0.5, 0)
-    targetsValue.position.set(rightW * 0.5, 30)
+    targetsValue.position.set(rightW * 0.5, isMobile ? 24 : 30)
     targetsPanel.addChild(targetsLabel)
     targetsPanel.addChild(targetsValue)
 
     const killsPanel = new Container()
-    killsPanel.position.set(rightX, 12 + rightH + rightGap)
+    killsPanel.position.set(rightX, topY + rightH + rightGap)
     const killsBg = new Graphics()
-    killsBg.roundRect(0, 0, rightW, rightH, 14)
+    killsBg.roundRect(0, 0, rightW, rightH, isMobile ? 12 : 14)
     killsBg.fill({ color: 0x831843, alpha: 0.94 })
     killsBg.stroke({ width: 3, color: 0xf472b6, alpha: 1 })
     const killsAccent = new Graphics()
@@ -582,24 +652,26 @@ export class StealthAssassinGame extends BaseSystem {
       text: 'Kills',
       style: {
         fill: 0xfce7f3,
-        fontSize: 12,
+        fontSize: isMobile ? 10 : 12,
         fontFamily: BUNGEE_FONT,
-        align: 'center'
+        align: 'center',
+        padding: 4
       }
     })
     killsLabel.anchor.set(0.5, 0)
-    killsLabel.position.set(rightW * 0.5, 12)
+    killsLabel.position.set(rightW * 0.5, isMobile ? 10 : 12)
     const killsValue = new Text({
       text: String(this._kills),
       style: {
         fill: 0xfca5a5,
-        fontSize: 26,
+        fontSize: isMobile ? 20 : 26,
         fontFamily: BUNGEE_FONT,
-        align: 'center'
+        align: 'center',
+        padding: 5
       }
     })
     killsValue.anchor.set(0.5, 0)
-    killsValue.position.set(rightW * 0.5, 30)
+    killsValue.position.set(rightW * 0.5, isMobile ? 24 : 30)
     killsPanel.addChild(killsLabel)
     killsPanel.addChild(killsValue)
 
@@ -1779,15 +1851,7 @@ export class StealthAssassinGame extends BaseSystem {
       const a = a0 + (a1 - a0) * t
       const ux = Math.cos(a)
       const uy = Math.sin(a)
-      const hitDist = castDistanceToSolid(
-        coneOriginX,
-        coneOriginY,
-        ux,
-        uy,
-        visionRange,
-        colliders,
-        id
-      )
+      const hitDist = nextHits[i] ?? visionRange
       g.lineTo(coneOriginX + ux * hitDist, coneOriginY + uy * hitDist)
     }
     g.lineTo(coneOriginX, coneOriginY)
@@ -1817,7 +1881,11 @@ export class StealthAssassinGame extends BaseSystem {
     if (cam.boundRight != null) tx = Math.min(tx, Number(cam.boundRight))
     if (cam.boundTop != null) ty = Math.max(ty, Number(cam.boundTop))
     if (cam.boundBottom != null) ty = Math.min(ty, Number(cam.boundBottom))
-    return { x: sx + tx - this._viewW / 2, y: sy + ty - this._viewH / 2 }
+    const zoom = Math.max(0.2, Number(cam.zoom ?? 1) || 1)
+    return {
+      x: (sx - this._viewW / 2) / zoom + tx,
+      y: (sy - this._viewH / 2) / zoom + ty
+    }
   }
 
   _guardDoorApproachPad (radius) {
@@ -2859,10 +2927,21 @@ export class StealthAssassinGame extends BaseSystem {
     )
     const cam = camEnt?.components?.get(COMPONENT_CAMERA)
     if (!cam) return
-    cam.boundLeft = 50
-    cam.boundRight = layout.worldW + layout.roomSize * 0.5
-    cam.boundTop = 50
-    cam.boundBottom = layout.worldH - 50
+    const zoom = this._isMobileLayout()
+      ? STEALTH_CAMERA_ZOOM_MOBILE
+      : STEALTH_CAMERA_ZOOM_DESKTOP
+    const halfW = this._viewW / (2 * zoom)
+    const halfH = this._viewH / (2 * zoom)
+    cam.zoom = zoom
+    cam.offsetX = this._viewW * STEALTH_CAMERA_LEFT_BIAS_RATIO
+    cam.offsetY = 0
+    cam.boundLeft = Math.max(50, halfW)
+    cam.boundRight = Math.max(
+      cam.boundLeft,
+      layout.worldW + layout.roomSize * 0.5 - halfW
+    )
+    cam.boundTop = Math.max(50, halfH)
+    cam.boundBottom = Math.max(cam.boundTop, layout.worldH - halfH)
     cam.followMetaName = this.playerMetaName
   }
 }

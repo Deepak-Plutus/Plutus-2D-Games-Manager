@@ -45,6 +45,8 @@ export class BehaviorSystem extends BaseSystem {
     this.inputCoordinator = null;
     /** When true, {@link ScrollToBehavior} averaging is skipped for this frame */
     this._cameraOverridesScroll = false;
+    /** Active camera zoom for current frame. */
+    this._cameraZoom = 1;
   }
 
   /**
@@ -112,6 +114,7 @@ export class BehaviorSystem extends BaseSystem {
    */
   _applyCameraFollow(dt, world) {
     this._cameraOverridesScroll = false;
+    this._cameraZoom = 1;
     /** @type {import('../Components/SceneComponents.js').Camera[]} */
     const cams = [];
     for (const ent of world.entities.values()) {
@@ -122,6 +125,7 @@ export class BehaviorSystem extends BaseSystem {
     if (!cams.length) return;
     cams.sort((a, b) => b.priority - a.priority);
     const cam = cams[0];
+    this._cameraZoom = Math.max(0.2, Number(cam.zoom ?? 1) || 1);
 
     let targetId = cam.followEntityId;
     if (targetId != null && !world.entities.has(targetId)) {
@@ -193,10 +197,14 @@ export class BehaviorSystem extends BaseSystem {
     }
 
     if (this._focusX != null && this._focusY != null) {
+      const zoom = Math.max(0.2, Number(this._cameraZoom ?? 1) || 1);
+      this.stage.scale.set(zoom, zoom);
       this.stage.position.set(
-        this.layoutWidth / 2 - this._focusX + ox,
-        this.layoutHeight / 2 - this._focusY + oy,
+        this.layoutWidth / 2 - this._focusX * zoom + ox,
+        this.layoutHeight / 2 - this._focusY * zoom + oy,
       );
+    } else {
+      this.stage.scale.set(1, 1);
     }
   }
 }
