@@ -35,7 +35,10 @@
       "playerMaxHp": 100,
       "bulletDamage": 10,
       "pathCurveTension": 10,
-      "enemyFacingAngleOffset": -1.5707963267948966
+      "enemyFacingAngleOffset": -1.5707963267948966,
+      "doorSpawnChance": 0.22,
+      "doorSpan": 68,
+      "doorOpenDuration": 1.2
     }
   },
   "input": {
@@ -52,14 +55,22 @@
     {
       "id": "floorTile",
       "plugin": "Sprite",
-      "sprite": { "shape": "rect", "tint": 1119519, "anchorX": 0.5, "anchorY": 0.5 },
+      "sprite": { "shape": "rect", "tint": 16777215, "anchorX": 0.5, "anchorY": 0.5 },
       "layer": "Background"
     },
     {
       "id": "wallBlock",
       "plugin": "Sprite",
-      "sprite": { "shape": "rect", "tint": 3355443, "anchorX": 0.5, "anchorY": 0.5 },
+      "sprite": { "shape": "rect", "tint": 77124816, "anchorX": 0.5, "anchorY": 0.5 },
       "layer": "Main",
+      "collision": { "kind": "solid", "width": 1, "height": 1, "offsetX": 0, "offsetY": 0 }
+    },
+    {
+      "id": "doorBlock",
+      "plugin": "Sprite",
+      "sprite": { "shape": "rect", "tint": 7029795, "anchorX": 0.5, "anchorY": 0.5 },
+      "layer": "Main",
+      "tags": ["door"],
       "collision": { "kind": "solid", "width": 1, "height": 1, "offsetX": 0, "offsetY": 0 }
     },
     {
