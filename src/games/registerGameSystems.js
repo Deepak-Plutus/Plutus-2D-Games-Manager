@@ -1,6 +1,7 @@
 import { PlatformerGameSystem } from './PlatformerGameSystem.js';
 import { Game2048Game } from './Game2048Game.js';
 import { FlappyBirdGame } from './FlappyBirdGame.js';
+import { StealthAssassinGame } from './StealthAssassinGame.js';
 
 /**
  * Game-layer registrations only (kept out of core engine wiring).
@@ -12,6 +13,7 @@ const GAME_SYSTEM_FACTORIES = {
   platformerGame: () => new PlatformerGameSystem(),
   game2048: () => new Game2048Game(),
   flappyBird: () => new FlappyBirdGame(),
+  stealthAssassin: () => new StealthAssassinGame(),
 };
 
 /**

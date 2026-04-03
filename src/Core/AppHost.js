@@ -81,7 +81,7 @@ export class AppHost {
       autoDensity: true,
       resolution: Math.max(1, typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1),
     });
-
+    globalThis.__PIXI_APP__ = this.app;
     this.container.replaceChildren(this.app.canvas);
     this.app.stage.sortableChildren = true;
     return this.app;
