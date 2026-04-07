@@ -2,6 +2,9 @@ import type { InputEventHub } from './InputEventHub.js'
 
 type PointerDetail = Record<string, unknown>
 
+/**
+ * Pointer/touch input tracker that emits normalized layout-space events.
+ */
 export class PointerInput {
   x: number
   y: number
@@ -37,6 +40,14 @@ export class PointerInput {
     this._activePointerId = 0
   }
 
+  /**
+   * Attaches pointer listeners to canvas/window and sets layout dimensions.
+   *
+   * @param {HTMLCanvasElement} canvas Target canvas.
+   * @param {number} layoutWidth Layout-space width.
+   * @param {number} layoutHeight Layout-space height.
+   * @returns {void} Nothing.
+   */
   attach (canvas: HTMLCanvasElement, layoutWidth: number, layoutHeight: number): void {
     this.detach()
     this._canvas = canvas
@@ -49,6 +60,11 @@ export class PointerInput {
     window.addEventListener('pointermove', this._move)
   }
 
+  /**
+   * Detaches all pointer listeners and resets pointer-down state.
+   *
+   * @returns {void} Nothing.
+   */
   detach (): void {
     if (!this._canvas) return
     this._canvas.removeEventListener('pointerdown', this._down)
@@ -60,24 +76,58 @@ export class PointerInput {
     this.isDown = false
   }
 
+  /**
+   * Updates layout-space dimensions used for coordinate conversion.
+   *
+   * @param {number} w Layout width.
+   * @param {number} h Layout height.
+   * @returns {void} Nothing.
+   */
   setLayoutSize (w: number, h: number): void {
     this._w = w
     this._h = h
   }
 
+  /**
+   * Sets optional input event hub for pointer event emission.
+   *
+   * @param {InputEventHub | null} hub Input event hub.
+   * @returns {void} Nothing.
+   */
   setInputEventHub (hub: InputEventHub | null): void {
     this._hub = hub
   }
 
+  /**
+   * Injects stick values derived from gamepad.
+   *
+   * @param {number} x Horizontal stick axis.
+   * @param {number} y Vertical stick axis.
+   * @returns {void} Nothing.
+   */
   setStickFromGamepad (x: number, y: number): void {
     this.stickX = x
     this.stickY = y
   }
 
+  /**
+   * Converts client coordinates to current layout-space coordinates.
+   *
+   * @param {number} clientX Client-space x.
+   * @param {number} clientY Client-space y.
+   * @returns {{ x: number; y: number }}
+   */
   clientToLayout (clientX: number, clientY: number): { x: number; y: number } {
     return this._toLocalCoords(clientX, clientY)
   }
 
+  /**
+   * Converts client-space coordinates to layout-space coordinates.
+   *
+   * @param {number} clientX Client-space x.
+   * @param {number} clientY Client-space y.
+   * @returns {{ x: number; y: number }}
+   */
   private _toLocalCoords (clientX: number, clientY: number): { x: number; y: number } {
     if (!this._canvas) return { x: 0, y: 0 }
     const r = this._canvas.getBoundingClientRect()
@@ -86,6 +136,14 @@ export class PointerInput {
     return { x: nx * this._w, y: ny * this._h }
   }
 
+  /**
+   * Emits a normalized pointer event through the input hub.
+   *
+   * @param {string} type Event type.
+   * @param {PointerEvent} e Source pointer event.
+   * @param {PointerDetail} extra Additional payload fields.
+   * @returns {void} Nothing.
+   */
   private _emitPointer (type: string, e: PointerEvent, extra: PointerDetail = {}): void {
     const p = this._toLocalCoords(e.clientX, e.clientY)
     this._hub?.emit(type, {
@@ -101,6 +159,12 @@ export class PointerInput {
     })
   }
 
+  /**
+   * Handles pointer-down events.
+   *
+   * @param {PointerEvent} e Pointer event.
+   * @returns {void} Nothing.
+   */
   private _onPointerDown (e: PointerEvent): void {
     if (!this._canvas || e.target !== this._canvas) return
     this.isDown = true
@@ -118,6 +182,12 @@ export class PointerInput {
     })
   }
 
+  /**
+   * Handles pointer-up events.
+   *
+   * @param {PointerEvent} e Pointer event.
+   * @returns {void} Nothing.
+   */
   private _onPointerUp (e: PointerEvent): void {
     if (!this.isDown || e.pointerId !== this._activePointerId) return
     this._emitPointer('pointer:up', e)
@@ -131,6 +201,12 @@ export class PointerInput {
     this.button = -1
   }
 
+  /**
+   * Handles pointer-move events.
+   *
+   * @param {PointerEvent} e Pointer event.
+   * @returns {void} Nothing.
+   */
   private _onPointerMove (e: PointerEvent): void {
     const p = this._toLocalCoords(e.clientX, e.clientY)
     this.x = p.x
@@ -138,6 +214,12 @@ export class PointerInput {
     this._emitPointer('pointer:move', e)
   }
 
+  /**
+   * Handles pointer-leave events.
+   *
+   * @param {PointerEvent} e Pointer event.
+   * @returns {void} Nothing.
+   */
   private _onPointerLeave (e: PointerEvent): void {
     this._emitPointer('pointer:leave', e)
   }

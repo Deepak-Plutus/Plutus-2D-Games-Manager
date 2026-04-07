@@ -1,5 +1,8 @@
 import { Container, Graphics, Text } from 'pixi.js'
 
+/**
+ * Full-screen loading overlay with status and percentage.
+ */
 export class LoadingScreen extends Container {
   private _w: number
   private _h: number
@@ -7,6 +10,12 @@ export class LoadingScreen extends Container {
   private _label: Text
   private _percent: Text
 
+  /**
+   * Creates the loading overlay.
+   *
+   * @param {number} width Initial width.
+   * @param {number} height Initial height.
+   */
   constructor (width: number, height: number) {
     super()
     this.eventMode = 'none'
@@ -40,12 +49,24 @@ export class LoadingScreen extends Container {
     this.redraw()
   }
 
+  /**
+   * Updates internal dimensions and redraws layout.
+   *
+   * @param {number} width New width.
+   * @param {number} height New height.
+   * @returns {void} Nothing.
+   */
   resize (width: number, height: number): void {
     this._w = width
     this._h = height
     this.redraw()
   }
 
+  /**
+   * Recomputes graphics and text positions based on size.
+   *
+   * @returns {void} Nothing.
+   */
   redraw (): void {
     const w = this._w
     const h = this._h
@@ -66,12 +87,25 @@ export class LoadingScreen extends Container {
     this._percent.position.set(Math.round(w / 2), Math.round(h / 2 + lineGap))
   }
 
+  /**
+   * Updates progress text.
+   *
+   * @param {number} percent Progress in [0,100].
+   * @param {string | undefined} status Optional status message.
+   * @returns {void} Nothing.
+   */
   setProgress (percent: number, status?: string): void {
     const p = Math.max(0, Math.min(100, Math.round(percent)))
     this._label.text = status != null ? status : 'Loading...'
     this._percent.text = `${p}%`
   }
 
+  /**
+   * Shows an error state in the loading overlay.
+   *
+   * @param {string} message Error details to display.
+   * @returns {void} Nothing.
+   */
   showError (message: string): void {
     this._label.text = 'Error'
     this._label.style.fill = 0xff6b6b
@@ -81,6 +115,11 @@ export class LoadingScreen extends Container {
     this._percent.style.wordWrapWidth = this._w - 40
   }
 
+  /**
+   * Hides and destroys the loading overlay.
+   *
+   * @returns {void} Nothing.
+   */
   hide (): void {
     this.visible = false
     this.parent?.removeChild(this)

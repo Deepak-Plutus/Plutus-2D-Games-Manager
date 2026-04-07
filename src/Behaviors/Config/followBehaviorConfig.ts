@@ -1,3 +1,8 @@
+/**
+ * Default settings for `FollowBehavior`.
+ *
+ * @type {const}
+ */
 export const followBehaviorDefaults = {
   targetName: '',
   historyRate: 30,

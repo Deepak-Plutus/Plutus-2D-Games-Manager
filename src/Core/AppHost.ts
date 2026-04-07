@@ -15,6 +15,14 @@ type AppConfig = Partial<{
   fullscreen: boolean
 }>
 
+/**
+ * Resolves app canvas dimensions from config and fallbacks.
+ *
+ * @param {Record<string, unknown>} appConfig App config object.
+ * @param {number} fallbackW Default width.
+ * @param {number} fallbackH Default height.
+ * @returns {{ width: number; height: number }}
+ */
 export function resolveAppDimensions (
   appConfig: Record<string, unknown>,
   fallbackW: number,
@@ -43,6 +51,9 @@ export function resolveAppDimensions (
   }
 }
 
+/**
+ * Owns Pixi `Application` setup and resize/apply-config operations.
+ */
 export class AppHost {
   container: HTMLElement
   app: Application | null
@@ -50,6 +61,9 @@ export class AppHost {
   height: number
   private _background: string
 
+  /**
+   * @param {HTMLElement} container Host element where the Pixi canvas is mounted.
+   */
   constructor (container: HTMLElement) {
     this.container = container
     this.app = null
@@ -58,6 +72,12 @@ export class AppHost {
     this._background = DEFAULT_APP.background
   }
 
+  /**
+   * Initializes Pixi application and mounts it to container.
+   *
+   * @param {AppConfig} initialApp Optional initial app config.
+   * @returns {Promise<Application>} Initialized Pixi application.
+   */
   async init (initialApp: AppConfig = {}): Promise<Application> {
     const { width: w, height: h } = resolveAppDimensions(
       initialApp as Record<string, unknown>,
@@ -83,6 +103,12 @@ export class AppHost {
     return this.app
   }
 
+  /**
+   * Applies runtime app config updates (resize/background).
+   *
+   * @param {Record<string, unknown>} appConfig App config block.
+   * @returns {void} Nothing.
+   */
   applyAppConfig (appConfig: Record<string, unknown> = {}): void {
     if (!this.app) return
     const { width: w, height: h } = resolveAppDimensions(appConfig, this.width, this.height)
@@ -94,6 +120,11 @@ export class AppHost {
     }
   }
 
+  /**
+   * Current stage if initialized.
+   *
+   * @returns {Application['stage'] | null} Stage when initialized.
+   */
   get stage () {
     return this.app?.stage ?? null
   }

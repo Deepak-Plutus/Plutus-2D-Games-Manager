@@ -5,6 +5,11 @@ import {
 import { attachGameComponents } from '../Entities/attachGameComponents.js'
 import { ComponentParserRegistry } from './ComponentParserRegistry.js'
 
+/**
+ * Creates the default parser chain used when building entities from JSON.
+ *
+ * @returns {ComponentParserRegistry} Parser registry with default parsers.
+ */
 export function createDefaultComponentParserRegistry (): ComponentParserRegistry {
   const registry = new ComponentParserRegistry()
 

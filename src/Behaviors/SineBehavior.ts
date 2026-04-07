@@ -6,6 +6,15 @@ const TAU = Math.PI * 2
 const DEG = Math.PI / 180
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Oscillation behavior that applies wave offsets to transform/display properties.
+ *
+ * Can drive position, rotation, size, and opacity-style effects with several
+ * waveform types and optional randomization at spawn.
+ *
+ * @example
+ * { "type": "sine", "movement": "vertical", "period": 2.5, "magnitude": 18 }
+ */
 export class SineBehavior extends BaseBehavior {
   static type = 'sine'
   static priority = 62
@@ -35,6 +44,12 @@ export class SineBehavior extends BaseBehavior {
     if (this.periodRandom) this.period = Math.max(0.05, this.period + (Math.random() * 2 - 1) * Number(this.periodRandom))
   }
 
+  /**
+   * Applies wave and movement parameters from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config object.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.movement != null) this.movement = String(json.movement)
     if (json.wave != null) this.wave = String(json.wave)
@@ -46,6 +61,12 @@ export class SineBehavior extends BaseBehavior {
     if (json.randomizeInitialPhase != null) this.randomizeInitialPhase = !!json.randomizeInitialPhase
   }
 
+  /**
+   * Advances oscillation phase and applies delta offsets each frame.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled()) return
     const { transform, dt, displayView } = ctx
@@ -101,6 +122,13 @@ export class SineBehavior extends BaseBehavior {
   }
 }
 
+/**
+ * Samples normalized wave output for a given phase.
+ *
+ * @param {string} wave Waveform name (`sine`, `triangle`, `square`, `sawtooth`, ...).
+ * @param {number} phase Oscillation phase in radians.
+ * @returns {number} Wave output in roughly `[-1, 1]`.
+ */
 function sampleWave (wave: string, phase: number): number {
   const t = (phase / TAU) % 1
   const w = String(wave).toLowerCase()

@@ -1,3 +1,8 @@
+/**
+ * Default settings for `CarBehavior`.
+ *
+ * @type {const}
+ */
 export const carBehaviorDefaults = {
   maxSpeed: 350,
   acceleration: 1200,

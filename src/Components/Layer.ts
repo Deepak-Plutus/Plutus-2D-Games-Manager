@@ -1,5 +1,8 @@
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Render layer marker with z-index ordering.
+ */
 export class Layer {
   name: string
   zIndex: number
@@ -9,6 +12,13 @@ export class Layer {
     this.zIndex = Number(zIndex) || 0
   }
 
+  /**
+   * Creates a layer from JSON with fallback defaults.
+   *
+   * @param {JsonRecord} def Raw layer block.
+   * @param {{ name?: string; zIndex?: number }} layerDefaults Optional fallback layer values.
+   * @returns {Layer}
+   */
   static fromJson (
     def: JsonRecord = {},
     layerDefaults: { name?: string; zIndex?: number } = {}

@@ -9,7 +9,20 @@ type AssetDef = {
   height?: unknown
 }
 
+/**
+ * Loads configured assets into an {@link AssetRegistry}.
+ */
 export class AssetLoader {
+  /**
+   * Loads all supported assets in sequence and reports progress.
+   *
+   * @param {unknown[]} list Raw asset definitions.
+   * @param {AssetRegistry} registry Runtime registry to populate.
+   * @param {(progress01: number, label: string) => void} [onProgress] Optional progress callback in [0,1].
+   * @returns {Promise<void>} Resolves when all assets finish loading.
+   * @example
+   * await loader.loadAll(config.assets, registry, (p, label) => console.log(p, label))
+   */
   async loadAll (
     list: unknown[],
     registry: AssetRegistry,
@@ -56,6 +69,12 @@ export class AssetLoader {
     }
   }
 
+  /**
+   * Loads a texture using Pixi Assets or fallback constructor.
+   *
+   * @param {string} url Texture URL.
+   * @returns {Promise<Texture>} Loaded texture.
+   */
   static async #loadTexture (url: string): Promise<Texture> {
     if (typeof Assets?.load === 'function') {
       const res = await Assets.load(url)
@@ -65,6 +84,12 @@ export class AssetLoader {
     return Texture.from(url)
   }
 
+  /**
+   * Loads audio into an HTMLAudioElement and resolves once playable.
+   *
+   * @param {string} url Audio URL.
+   * @returns {Promise<HTMLAudioElement>} Loaded audio element.
+   */
   static #loadAudioElement (url: string): Promise<HTMLAudioElement> {
     return new Promise((resolve, reject) => {
       const audio = new Audio()

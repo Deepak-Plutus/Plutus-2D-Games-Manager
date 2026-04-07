@@ -3,6 +3,15 @@ import type { BehaviorRuntimeContext } from './BehaviorRuntimeContext.js'
 
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Constrains entity position within layout bounds by origin or visual edge.
+ *
+ * `origin` mode clamps the transform pivot, while `edge` mode clamps using
+ * rendered width/height with scale.
+ *
+ * @example
+ * { "type": "boundToLayout", "boundBy": "edge" }
+ */
 export class BoundToLayoutBehavior extends BaseBehavior {
   static type = 'boundToLayout'
   static priority = 100
@@ -10,14 +19,31 @@ export class BoundToLayoutBehavior extends BaseBehavior {
 
   boundBy = 'edge'
 
+  /**
+   * Applies bound mode from JSON (`origin` or `edge`).
+   *
+   * @param {JsonRecord} json Raw behavior config.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.boundBy != null) this.boundBy = String(json.boundBy)
   }
 
+  /**
+   * Normalized bound mode with fallback to `edge`.
+   *
+   * @returns {'origin' | 'edge'} Active bound mode.
+   */
   get boundByMode (): 'origin' | 'edge' {
     return this.boundBy === 'origin' ? 'origin' : 'edge'
   }
 
+  /**
+   * Clamps transform position to configured layout constraints.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled()) return
     const { transform, layoutWidth, layoutHeight, displaySize } = ctx
@@ -43,6 +69,14 @@ export class BoundToLayoutBehavior extends BaseBehavior {
   }
 }
 
+/**
+ * Clamps a value into `[min, max]`.
+ *
+ * @param {number} v Input value.
+ * @param {number} min Lower bound.
+ * @param {number} max Upper bound.
+ * @returns {number} Clamped value.
+ */
 function clamp (v: number, min: number, max: number): number {
   if (min > max) return v
   return Math.max(min, Math.min(max, v))

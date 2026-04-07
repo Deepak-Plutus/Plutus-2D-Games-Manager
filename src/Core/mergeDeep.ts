@@ -1,3 +1,11 @@
+/**
+ * Deep-merges source objects into target.
+ * Arrays are replaced with shallow copies, objects are merged recursively.
+ *
+ * @param {Record<string, unknown>} target Destination object to mutate.
+ * @param {...Record<string, unknown>} sources Source objects.
+ * @returns {Record<string, unknown>} Mutated target.
+ */
 export function mergeDeep (
   target: Record<string, unknown>,
   ...sources: Record<string, unknown>[]

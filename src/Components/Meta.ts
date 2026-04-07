@@ -1,5 +1,8 @@
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Lightweight metadata stored per entity for lookup/render decisions.
+ */
 export type MetaRecord = {
   name: string
   uid: number
@@ -9,6 +12,14 @@ export type MetaRecord = {
   visible: boolean
 }
 
+/**
+ * Builds normalized meta info from merged config and resolved object type.
+ *
+ * @param {JsonRecord} merged Fully merged entity definition.
+ * @param {number} entityId Runtime entity id fallback.
+ * @param {string} resolvedObjectType Resolved object type id from resolver.
+ * @returns {MetaRecord} Normalized metadata record.
+ */
 export function buildMetaRecord (
   merged: JsonRecord,
   entityId: number,

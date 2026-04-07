@@ -6,6 +6,11 @@ import { orbitBehaviorDefaults } from './Config/orbitBehaviorConfig.js'
 const DEG = Math.PI / 180
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Elliptical orbit behavior around a fixed center or pinned target.
+ *
+ * Optionally aligns entity rotation to orbit tangent direction.
+ */
 export class OrbitBehavior extends BaseBehavior {
   static type = 'orbit'
   static priority = 25
@@ -25,12 +30,24 @@ export class OrbitBehavior extends BaseBehavior {
   private _prevOrbitAngleDeg = 0
   private _hasCenter = false
 
+  /**
+   * Creates orbit behavior and seeds center/speed state.
+   *
+   * @param {JsonRecord} json Raw behavior config.
+   * @returns {void} Nothing.
+   */
   constructor (json: JsonRecord = {}) {
     super(json)
     this._speedCurrent = this.speed
     this._hasCenter = this.centerX != null && this.centerY != null
   }
 
+  /**
+   * Applies orbit parameters from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.speed != null) { this.speed = Number(json.speed); this._speedCurrent = this.speed }
     if (json.acceleration != null) this.acceleration = Number(json.acceleration)
@@ -43,6 +60,12 @@ export class OrbitBehavior extends BaseBehavior {
     if (json.pinnedTargetName != null) this.pinnedTargetName = String(json.pinnedTargetName)
   }
 
+  /**
+   * Advances orbit position and optional tangent rotation.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled()) return
     const { transform, world, dt } = ctx

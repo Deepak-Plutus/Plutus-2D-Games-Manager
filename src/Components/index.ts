@@ -1,3 +1,6 @@
+/**
+ * Public barrel exports for all ECS component builders, models, and keys.
+ */
 export { buildMetaRecord } from './Meta.js'
 export { InstanceVariables } from './InstanceVariables.js'
 export { Layer } from './Layer.js'

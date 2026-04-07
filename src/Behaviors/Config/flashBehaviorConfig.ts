@@ -1,3 +1,8 @@
+/**
+ * Default settings for `FlashBehavior`.
+ *
+ * @type {const}
+ */
 export const flashBehaviorDefaults = {
   onDuration: 0.1,
   offDuration: 0.1,

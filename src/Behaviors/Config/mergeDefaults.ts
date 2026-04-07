@@ -1,3 +1,12 @@
+/**
+ * Deep-merges behavior JSON on top of default values.
+ *
+ * Skips `type` and `undefined` keys while preserving nested object structure.
+ *
+ * @param {Record<string, unknown>} base Default config object.
+ * @param {Record<string, unknown> | undefined} json User-provided behavior config.
+ * @returns {Record<string, unknown>} Merged behavior config.
+ */
 export function mergeBehaviorDefaults (
   base: Record<string, unknown>,
   json?: Record<string, unknown>

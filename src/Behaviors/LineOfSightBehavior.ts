@@ -6,6 +6,12 @@ import { lineOfSightBehaviorDefaults } from './Config/lineOfSightBehaviorConfig.
 
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Line-of-sight sensing behavior for AI decision systems.
+ *
+ * Evaluates range, cone-of-view, and obstacle blocking, then emits
+ * `lineOfSight:changed` when visibility to target toggles.
+ */
 export class LineOfSightBehavior extends BaseBehavior {
   static type = 'lineOfSight'
   static priority = 35
@@ -29,6 +35,12 @@ export class LineOfSightBehavior extends BaseBehavior {
     this._customObstacleSet = new Set((Array.isArray(this.customObstacleNames) ? this.customObstacleNames : []).map(String))
   }
 
+  /**
+   * Applies LOS target/range/cone/obstacle settings from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.targetName != null) this.targetName = String(json.targetName)
     if (json.range != null) this.range = Number(json.range)
@@ -39,6 +51,12 @@ export class LineOfSightBehavior extends BaseBehavior {
     this._syncCustomObstacleSet()
   }
 
+  /**
+   * Evaluates current line-of-sight and emits change events.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled() || !this.targetName) return
     const { transform, world, events, entityId, colliders } = ctx
@@ -63,6 +81,17 @@ export class LineOfSightBehavior extends BaseBehavior {
   }
 }
 
+/**
+ * Tests whether a target lies inside a forward-facing cone.
+ *
+ * @param {number} ax Observer x.
+ * @param {number} ay Observer y.
+ * @param {number} forwardRad Observer forward angle (radians).
+ * @param {number} tx Target x.
+ * @param {number} ty Target y.
+ * @param {number} coneDeg Full cone angle in degrees.
+ * @returns {boolean} True when target is within cone.
+ */
 function inConeOfView (ax: number, ay: number, forwardRad: number, tx: number, ty: number, coneDeg: number): boolean {
   const half = ((coneDeg / 2) * Math.PI) / 180
   const fx = Math.cos(forwardRad); const fy = Math.sin(forwardRad)
@@ -73,6 +102,21 @@ function inConeOfView (ax: number, ay: number, forwardRad: number, tx: number, t
   return Math.acos(dot) <= half + 1e-5
 }
 
+/**
+ * Ray-samples obstacle colliders between two points.
+ *
+ * @param {number} x0 Start x.
+ * @param {number} y0 Start y.
+ * @param {number} x1 End x.
+ * @param {number} y1 End y.
+ * @param {number} step Sample interval.
+ * @param {ColliderAabb[]} colliders Collider list.
+ * @param {number} selfId Entity id to ignore.
+ * @param {BehaviorRuntimeContext['world']} world World reference.
+ * @param {'solids' | 'custom'} mode Obstacle mode.
+ * @param {Set<string>} customSet Custom blocker names.
+ * @returns {boolean} `true` when blocked.
+ */
 function rayBlocked (
   x0: number, y0: number, x1: number, y1: number, step: number, colliders: ColliderAabb[], selfId: number,
   world: BehaviorRuntimeContext['world'], mode: 'solids' | 'custom', customSet: Set<string>

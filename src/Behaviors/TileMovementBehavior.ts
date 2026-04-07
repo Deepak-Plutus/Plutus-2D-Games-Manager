@@ -5,6 +5,11 @@ import type { BehaviorRuntimeContext } from './BehaviorRuntimeContext.js'
 
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Grid-step movement behavior with tweened tile transitions.
+ *
+ * Supports orthogonal movement and optional isometric projection offsets.
+ */
 export class TileMovementBehavior extends BaseBehavior {
   static type = 'tileMovement'
   static priority = 16
@@ -24,6 +29,12 @@ export class TileMovementBehavior extends BaseBehavior {
   private _t = 0
   private _moving = false
 
+  /**
+   * Applies tile movement settings from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.gridSize != null) this.gridSize = Number(json.gridSize)
     if (json.moveDuration != null) this.moveDuration = Number(json.moveDuration)
@@ -32,10 +43,22 @@ export class TileMovementBehavior extends BaseBehavior {
     if (json.defaultControls != null) this.defaultControls = !!json.defaultControls
   }
 
+  /**
+   * Injects a one-frame movement intent.
+   *
+   * @param {string} control Direction control string.
+   * @returns {void} Nothing.
+   */
   simulateControl (control: string): void {
     this._simDir = String(control).toLowerCase().trim()
   }
 
+  /**
+   * Runs tile-step interpolation and starts new tile moves from input.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled()) return
     const { transform, dt, input } = ctx

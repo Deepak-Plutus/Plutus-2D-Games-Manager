@@ -1,3 +1,8 @@
+/**
+ * Default settings for `TileMovementBehavior`.
+ *
+ * @type {const}
+ */
 export const tileMovementBehaviorDefaults = {
   gridSize: 32,
   moveDuration: 0.15,

@@ -41,6 +41,9 @@ type GameSystemLike = GameSystemEntry['system'] & {
   ) => void
 }
 
+/**
+ * Orchestrates app bootstrap, config loading, systems, input, and main loop.
+ */
 export class GameManager {
   container: HTMLElement
   host: AppHost
@@ -59,6 +62,9 @@ export class GameManager {
   gameSystems: GameSystemEntry[]
   bootstrapContributions: BootstrapContributionRegistry
 
+  /**
+   * @param {HTMLElement} container Host element for the Pixi canvas.
+   */
   constructor (container: HTMLElement) {
     this.container = container
     this.host = new AppHost(container)
@@ -79,6 +85,11 @@ export class GameManager {
     this.bootstrapContributions = new BootstrapContributionRegistry()
   }
 
+  /**
+   * Boots the game runtime from URL config.
+   *
+   * @returns {Promise<void>} Resolves when startup completes.
+   */
   async start (): Promise<void> {
     await this.host.init()
     const app = this.host.app

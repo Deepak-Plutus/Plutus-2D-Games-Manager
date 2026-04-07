@@ -4,6 +4,15 @@ import { moveToBehaviorDefaults } from './Config/moveToBehaviorConfig.js'
 
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Steering behavior that accelerates an entity toward a target point.
+ *
+ * Uses velocity smoothing (`acceleration`) instead of teleporting, and can
+ * optionally rotate the transform to face the destination.
+ *
+ * @example
+ * { "type": "moveTo", "targetX": 640, "targetY": 360, "maxSpeed": 220 }
+ */
 export class MoveToBehavior extends BaseBehavior {
   static type = 'moveTo'
   static priority = 15
@@ -25,6 +34,12 @@ export class MoveToBehavior extends BaseBehavior {
     this._moving = this.autoStart
   }
 
+  /**
+   * Applies target and steering parameters from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config object.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.targetX != null) this.targetX = Number(json.targetX)
     if (json.targetY != null) this.targetY = Number(json.targetY)
@@ -38,26 +53,56 @@ export class MoveToBehavior extends BaseBehavior {
     }
   }
 
+  /**
+   * Indicates whether movement toward a destination is currently active.
+   *
+   * @returns {boolean} `true` when movement updates are running.
+   */
   get isMoving (): boolean {
     return this._moving
   }
 
+  /**
+   * Sets a new destination and starts movement.
+   *
+   * @param {number} x Destination x.
+   * @param {number} y Destination y.
+   * @returns {void} Nothing.
+   */
   setDestination (x: number, y: number): void {
     this.targetX = Number(x)
     this.targetY = Number(y)
     this._moving = true
   }
 
+  /**
+   * Stops movement and clears current velocity.
+   *
+   * @returns {void} Nothing.
+   */
   stop (): void {
     this._moving = false
     this._vx = 0
     this._vy = 0
   }
 
+  /**
+   * Resumes movement toward the current destination.
+   *
+   * @returns {void} Nothing.
+   */
   start (): void {
     this._moving = true
   }
 
+  /**
+   * Updates velocity and position until destination is reached.
+   *
+   * Emits `moveTo:arrived` when the entity reaches the destination.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled() || !this._moving) return
     const { transform, dt, events, entityId } = ctx
@@ -85,6 +130,14 @@ export class MoveToBehavior extends BaseBehavior {
   }
 }
 
+/**
+ * Moves `current` toward `target` by at most `maxStep`.
+ *
+ * @param {number} current Current scalar value.
+ * @param {number} target Desired scalar value.
+ * @param {number} maxStep Maximum allowed change.
+ * @returns {number} Next scalar value.
+ */
 function moveToward (current: number, target: number, maxStep: number): number {
   const d = target - current
   if (Math.abs(d) <= maxStep) return target

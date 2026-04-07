@@ -5,6 +5,12 @@ import { physicsBehaviorDefaults } from './Config/physicsBehaviorConfig.js'
 
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Lightweight kinematic physics integrator with AABB overlap resolution.
+ *
+ * Handles gravity, damping, optional angular integration, and basic
+ * elasticity/friction response against solid colliders.
+ */
 export class PhysicsBehavior extends BaseBehavior {
   static type = 'physics'
   static priority = 13
@@ -24,6 +30,12 @@ export class PhysicsBehavior extends BaseBehavior {
   private _impulseY = 0
   private _impulseAng = 0
 
+  /**
+   * Applies kinematic and collision response properties from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.velocityX != null) this.velocityX = Number(json.velocityX)
     if (json.velocityY != null) this.velocityY = Number(json.velocityY)
@@ -37,6 +49,12 @@ export class PhysicsBehavior extends BaseBehavior {
     if (json.applyAngularVelocity != null) this.applyAngularVelocity = !!json.applyAngularVelocity
   }
 
+  /**
+   * Integrates velocity/rotation and resolves overlaps with solids.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled()) return
     const { transform, dt, colliders, entityId, displaySize } = ctx
@@ -85,6 +103,12 @@ export class PhysicsBehavior extends BaseBehavior {
   }
 }
 
+/**
+ * Resolves overlap between a moving AABB and solid colliders.
+ *
+ * @returns {{ x: number; y: number; vx: number; vy: number }}
+ * Resolved position and reflected/friction-adjusted velocity.
+ */
 function resolveAabb (
   x: number,
   y: number,

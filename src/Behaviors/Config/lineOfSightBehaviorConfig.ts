@@ -1,3 +1,8 @@
+/**
+ * Default settings for `LineOfSightBehavior`.
+ *
+ * @type {const}
+ */
 export const lineOfSightBehaviorDefaults = {
   targetName: '',
   range: 500,

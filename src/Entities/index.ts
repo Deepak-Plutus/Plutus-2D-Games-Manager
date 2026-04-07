@@ -1,3 +1,6 @@
+/**
+ * Public exports for entity building and rendering helpers.
+ */
 export { createPixiViewForEntity, mountPixiDisplayForEntity } from '../Core/PixiEntityDisplay.js'
 export { BaseEntity } from './BaseEntity.js'
 export { attachGameComponents } from './attachGameComponents.js'

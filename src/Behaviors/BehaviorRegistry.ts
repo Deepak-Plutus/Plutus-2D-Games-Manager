@@ -16,6 +16,19 @@ type RuntimeShape = {
   displaySize?: { width: number; height: number }
 }
 
+/**
+ * Registry and executor for behavior classes.
+ *
+ * Handles:
+ * - behavior class registration by static `type`
+ * - behavior instance creation from JSON arrays
+ * - deterministic per-entity ticking by behavior priority
+ *
+ * @example
+ * const registry = new BehaviorRegistry()
+ * registry.registerClass(CarBehavior)
+ * const behaviors = registry.createFromJsonArray([{ type: 'car', maxSpeed: 300 }])
+ */
 export class BehaviorRegistry {
   private _classes: Map<string, typeof BaseBehavior>
 
@@ -23,12 +36,26 @@ export class BehaviorRegistry {
     this._classes = new Map()
   }
 
+  /**
+   * Registers a behavior class using its static `type` key.
+   *
+   * @param {typeof BaseBehavior} BehaviorClass Behavior constructor to register.
+   * @returns {void} Nothing.
+   */
   registerClass (BehaviorClass: typeof BaseBehavior): void {
     const type = BehaviorClass.type
     if (!type) return
     this._classes.set(type, BehaviorClass)
   }
 
+  /**
+   * Instantiates behavior instances from raw JSON definitions.
+   *
+   * Unknown `type` entries are ignored.
+   *
+   * @param {unknown[]} arr Raw behavior config array from entity/objectType JSON.
+   * @returns {BaseBehavior[]} Instantiated behavior list.
+   */
   createFromJsonArray (arr: unknown[]): BaseBehavior[] {
     const out: BaseBehavior[] = []
     if (!Array.isArray(arr)) return out
@@ -42,6 +69,20 @@ export class BehaviorRegistry {
     return out
   }
 
+  /**
+   * Ticks all enabled behaviors for one entity using deterministic ordering.
+   *
+   * Behaviors are sorted by static `priority` (ascending), then by original
+   * declaration order to keep ties stable.
+   *
+   * @param {number} entityId Runtime entity id.
+   * @param {Transform} transform Entity transform component.
+   * @param {BaseBehavior[]} instances Behavior instances attached to this entity.
+   * @param {number} dt Delta time in seconds.
+   * @param {World} world ECS world reference.
+   * @param {RuntimeShape} runtime Shared runtime/frame services and layout values.
+   * @returns {void} Nothing.
+   */
   tick (
     entityId: number,
     transform: Transform,

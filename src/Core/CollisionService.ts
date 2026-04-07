@@ -6,6 +6,9 @@ import {
 } from '../Components/index.js'
 import type { World } from '../ECS/World.js'
 
+/**
+ * Axis-aligned collider snapshot used by gameplay/runtime systems.
+ */
 export type ColliderAabb = {
   entityId: number
   kind: 'solid' | 'jumpThru' | string
@@ -27,6 +30,12 @@ type TransformShape = { x: number; y: number; scaleX: number; scaleY: number }
 type DisplayShape = { view?: { width?: number; height?: number } | null }
 type ColliderComp = { toCollisionShape?: () => CollisionShape }
 
+/**
+ * Builds an AABB collider list from world components for the current frame.
+ *
+ * @param {World} world ECS world.
+ * @returns {ColliderAabb[]} Collider snapshots in world space.
+ */
 export function buildColliderList (world: World): ColliderAabb[] {
   const out: ColliderAabb[] = []
   for (const e of world.entities.values()) {
@@ -60,6 +69,15 @@ export function buildColliderList (world: World): ColliderAabb[] {
   return out
 }
 
+/**
+ * Returns the first solid or jump-thru collider containing a point.
+ *
+ * @param {number} x World x.
+ * @param {number} y World y.
+ * @param {ColliderAabb[]} colliders Collider list.
+ * @param {number | undefined} ignoreEntityId Optional entity id to ignore.
+ * @returns {ColliderAabb | null}
+ */
 export function pointHitsSolid (
   x: number,
   y: number,
@@ -74,6 +92,13 @@ export function pointHitsSolid (
   return null
 }
 
+/**
+ * Tests two AABBs for overlap.
+ *
+ * @param {ColliderAabb} a First AABB.
+ * @param {ColliderAabb} b Second AABB.
+ * @returns {boolean}
+ */
 export function aabbOverlap (a: ColliderAabb, b: ColliderAabb): boolean {
   return !(a.right <= b.left || a.left >= b.right || a.bottom <= b.top || a.top >= b.bottom)
 }

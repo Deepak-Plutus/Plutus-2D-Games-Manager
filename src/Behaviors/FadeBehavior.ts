@@ -5,6 +5,20 @@ import { fadeBehaviorDefaults } from './Config/fadeBehaviorConfig.js'
 
 type JsonRecord = Record<string, unknown>
 
+/**
+ * One-shot/looping alpha fade timeline behavior powered by GSAP.
+ *
+ * Supports fade-in, optional wait, fade-out, and optional loop/restart.
+ * Can optionally destroy the entity once the sequence completes.
+ *
+ * @example
+ * {
+ *   "type": "fade",
+ *   "fadeInDuration": 0.2,
+ *   "waitDuration": 1.0,
+ *   "fadeOutDuration": 0.4
+ * }
+ */
 export class FadeBehavior extends BaseBehavior {
   static type = 'fade'
   static priority = 40
@@ -20,6 +34,12 @@ export class FadeBehavior extends BaseBehavior {
   private _tl: gsap.core.Timeline | null = null
   private _started = false
 
+  /**
+   * Applies fade timeline options from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config object.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.fadeInDuration != null) this.fadeInDuration = Number(json.fadeInDuration)
     if (json.waitDuration != null) this.waitDuration = Number(json.waitDuration)
@@ -30,12 +50,25 @@ export class FadeBehavior extends BaseBehavior {
     if (json.ease != null) this.ease = String(json.ease)
   }
 
+  /**
+   * Resets internal timeline so fade can be started again.
+   *
+   * @returns {void} Nothing.
+   */
   restart (): void {
     this._tl?.kill()
     this._tl = null
     this._started = false
   }
 
+  /**
+   * Builds and starts the fade timeline once display view is available.
+   *
+   * Emits `fade:complete` when a cycle finishes.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled() || !ctx.displayView || this._started) return
     this._started = true

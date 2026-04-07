@@ -5,6 +5,12 @@ import { turretBehaviorDefaults } from './Config/turretBehaviorConfig.js'
 
 const DEG = Math.PI / 180
 
+/**
+ * Target-acquire turret behavior that rotates and emits shoot events.
+ *
+ * @example
+ * { "type": "turret", "range": 360, "rateOfFire": 3, "targetNames": ["player"] }
+ */
 export class TurretBehavior extends BaseBehavior {
   static type = 'turret'
   static priority = 32
@@ -24,6 +30,12 @@ export class TurretBehavior extends BaseBehavior {
   private _currentTargetId: number | null = null
   private _fireCooldown = 0
 
+  /**
+   * Applies turret targeting and firing settings from JSON.
+   *
+   * @param {Record<string, unknown>} json Raw behavior config.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: Record<string, unknown>): void {
     if (json.range != null) this.range = Number(json.range)
     if (json.rateOfFire != null) this.rateOfFire = Number(json.rateOfFire)
@@ -34,6 +46,12 @@ export class TurretBehavior extends BaseBehavior {
     if (Array.isArray(json.targetNames)) for (const n of json.targetNames) this._targetNames.add(String(n))
   }
 
+  /**
+   * Acquires targets, rotates toward target, and emits shoot events.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled() || !ctx.world) return
     const { world, transform, dt, entityId, events } = ctx
@@ -66,5 +84,20 @@ export class TurretBehavior extends BaseBehavior {
   }
 }
 
+/**
+ * Returns shortest signed angular delta from `a` to `b`.
+ *
+ * @param {number} a Current angle.
+ * @param {number} b Target angle.
+ * @returns {number} Signed shortest delta.
+ */
 function angleDelta (a: number, b: number): number { let d = b - a; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI; return d }
+/**
+ * Moves current angle toward target angle by `maxStep`.
+ *
+ * @param {number} current Current angle.
+ * @param {number} target Target angle.
+ * @param {number} maxStep Max step in radians.
+ * @returns {number} Next angle.
+ */
 function rotateToward (current: number, target: number, maxStep: number): number { const d = angleDelta(current, target); return Math.abs(d) <= maxStep ? target : current + Math.sign(d) * maxStep }

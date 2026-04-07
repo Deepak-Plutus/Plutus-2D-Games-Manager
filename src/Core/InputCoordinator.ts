@@ -7,6 +7,9 @@ type Requirements = { keyboard?: boolean; pointer?: boolean; wheel?: boolean; ga
 type GamepadSnapshot = { buttons: boolean[]; axes: number[] }
 type PointerDetail = Record<string, unknown>
 
+/**
+ * Coordinates keyboard/pointer/gamepad inputs and derives higher-level events.
+ */
 export class InputCoordinator {
   hub: InputEventHub
   keyboard: KeyboardInput
@@ -29,6 +32,11 @@ export class InputCoordinator {
   private readonly _drMove: (ev: Event) => void
   private readonly _drUp: (ev: Event) => void
 
+  /**
+   * @param {InputEventHub} hub Shared input event hub.
+   * @param {KeyboardInput} keyboard Keyboard input tracker.
+   * @param {PointerInput} pointer Pointer input tracker.
+   */
   constructor (hub: InputEventHub, keyboard: KeyboardInput, pointer: PointerInput) {
     this.hub = hub
     this.keyboard = keyboard
@@ -52,6 +60,16 @@ export class InputCoordinator {
     this._drUp = (ev: Event) => this._onDragPointerUp((ev as CustomEvent).detail as PointerDetail)
   }
 
+  /**
+   * Applies input configuration and runtime requirements.
+   *
+   * @param {HTMLCanvasElement | null} canvas Target canvas.
+   * @param {number} _layoutW Current layout width.
+   * @param {number} _layoutH Current layout height.
+   * @param {Record<string, unknown>} inputConfig Input config block.
+   * @param {Requirements} requirements Merged system requirements.
+   * @returns {void} Nothing.
+   */
   configure (
     canvas: HTMLCanvasElement | null,
     _layoutW: number,
@@ -86,6 +104,11 @@ export class InputCoordinator {
     }
   }
 
+  /**
+   * Removes configured listeners and hub wiring.
+   *
+   * @returns {void} Nothing.
+   */
   dispose (): void {
     this._canvas?.removeEventListener('wheel', this._wheelHandler)
     for (const u of this._unsubs) u()
@@ -94,11 +117,23 @@ export class InputCoordinator {
     this.pointer.setInputEventHub(null)
   }
 
+  /**
+   * Emits wheel input in layout coordinates.
+   *
+   * @param {WheelEvent} e Wheel event.
+   * @returns {void} Nothing.
+   */
   private _onWheel (e: WheelEvent): void {
     const p = this.pointer.clientToLayout(e.clientX, e.clientY)
     this.hub.emit('wheel', { deltaX: e.deltaX, deltaY: e.deltaY, deltaMode: e.deltaMode, x: p.x, y: p.y })
   }
 
+  /**
+   * Starts drag tracking.
+   *
+   * @param {PointerDetail} d Pointer event detail payload.
+   * @returns {void} Nothing.
+   */
   private _onDragPointerDown (d: PointerDetail): void {
     this._dragActive = true
     this._dragStarted = false
@@ -107,6 +142,12 @@ export class InputCoordinator {
     this._dragPointerId = Number(d.pointerId)
   }
 
+  /**
+   * Updates drag tracking and emits drag events.
+   *
+   * @param {PointerDetail} d Pointer event detail payload.
+   * @returns {void} Nothing.
+   */
   private _onDragPointerMove (d: PointerDetail): void {
     if (!this._dragActive || Number(d.pointerId) !== this._dragPointerId) return
     const x = Number(d.x)
@@ -123,6 +164,12 @@ export class InputCoordinator {
     }
   }
 
+  /**
+   * Ends drag tracking.
+   *
+   * @param {PointerDetail} d Pointer event detail payload.
+   * @returns {void} Nothing.
+   */
   private _onDragPointerUp (d: PointerDetail): void {
     if (!this._dragActive || Number(d.pointerId) !== this._dragPointerId) return
     if (this._dragStarted) {
@@ -133,6 +180,12 @@ export class InputCoordinator {
     this._dragPointerId = -1
   }
 
+  /**
+   * Updates gamepad snapshot and stick fusion each frame.
+   *
+   * @param {number} _dt Delta time in seconds.
+   * @returns {void} Nothing.
+   */
   update (_dt: number): void {
     let gx = 0
     let gy = 0
@@ -166,12 +219,25 @@ export class InputCoordinator {
     this.pointer.setStickFromGamepad(pick(gx, this.stick.x), pick(gy, this.stick.y))
   }
 
+  /**
+   * Sets normalized virtual joystick vector.
+   *
+   * @param {number} x Horizontal axis in [-1, 1].
+   * @param {number} y Vertical axis in [-1, 1].
+   * @returns {void} Nothing.
+   */
   setVirtualJoystick (x: number, y: number): void {
     this.stick.x = Math.max(-1, Math.min(1, x))
     this.stick.y = Math.max(-1, Math.min(1, y))
     this.hub.emit('joystick:virtual', { x: this.stick.x, y: this.stick.y })
   }
 
+  /**
+   * Checks whether any token mapped to an action is active.
+   *
+   * @param {string} actionName Action name.
+   * @returns {boolean}
+   */
   isActionDown (actionName: string): boolean {
     const tokens = this.actions.getTokens(actionName)
     for (const t of tokens) {
@@ -180,6 +246,12 @@ export class InputCoordinator {
     return false
   }
 
+  /**
+   * Evaluates whether a token is currently active.
+   *
+   * @param {string} token Input token.
+   * @returns {boolean}
+   */
   private _tokenActive (token: string): boolean {
     const u = String(token).trim()
     if (u.startsWith('Mouse')) {
@@ -199,11 +271,23 @@ export class InputCoordinator {
     return this.keyboard.isDown(u)
   }
 
+  /**
+   * Alias for `dispose`.
+   *
+   * @returns {void} Nothing.
+   */
   destroy (): void {
     this.dispose()
   }
 }
 
+/**
+ * Merges system-declared input requirements with forced config flags.
+ *
+ * @param {Requirements} fromSystems Requirements inferred from active systems.
+ * @param {Record<string, unknown>} inputRoot Input config root.
+ * @returns {Required<Requirements>}
+ */
 export function mergeInputRequirements (
   fromSystems: Requirements,
   inputRoot: Record<string, unknown> = {}

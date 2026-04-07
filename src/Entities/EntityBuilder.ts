@@ -26,15 +26,32 @@ type SpawnOptions = {
 
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Spawns ECS entities from config instances and object type templates.
+ */
 export class EntityBuilder {
   private _behaviorRegistry: BehaviorRegistry
   private _componentParserRegistry: ComponentParserRegistry
 
+  /**
+   * @param {BehaviorRegistry} behaviorRegistry Behavior factory/registry.
+   * @param {ComponentParserRegistry} componentParserRegistry Parser chain.
+   */
   constructor (behaviorRegistry: BehaviorRegistry, componentParserRegistry: ComponentParserRegistry = createDefaultComponentParserRegistry()) {
     this._behaviorRegistry = behaviorRegistry
     this._componentParserRegistry = componentParserRegistry
   }
 
+  /**
+   * Spawns all entities from a config list.
+   *
+   * @param {World} world ECS world.
+   * @param {unknown[]} entityList Raw entity list.
+   * @param {AssetRegistry} registry Asset registry.
+   * @param {Container} stage Stage container.
+   * @param {SpawnOptions} options Spawn options.
+   * @returns {void} Nothing.
+   */
   spawnFromConfig (
     world: World,
     entityList: unknown[],
@@ -54,6 +71,17 @@ export class EntityBuilder {
     }
   }
 
+  /**
+   * Spawns one merged entity definition.
+   *
+   * @param {World} world ECS world.
+   * @param {JsonRecord} merged Merged entity definition.
+   * @param {string} objectType Resolved object type id.
+   * @param {AssetRegistry} registry Asset registry.
+   * @param {Container} stage Stage container.
+   * @param {LayerTable} layerTable Layer resolver.
+   * @returns {number}
+   */
   private _spawnOne (
     world: World,
     merged: JsonRecord,
@@ -112,6 +140,16 @@ export class EntityBuilder {
     return entityId
   }
 
+  /**
+   * Spawns one entity directly from a runtime instance definition.
+   *
+   * @param {World} world ECS world.
+   * @param {AssetRegistry} registry Asset registry.
+   * @param {Container} stage Stage container.
+   * @param {SpawnOptions} spawnOptions Spawn options.
+   * @param {JsonRecord} instanceDef Instance definition.
+   * @returns {number}
+   */
   spawnFromInstance (
     world: World,
     registry: AssetRegistry,

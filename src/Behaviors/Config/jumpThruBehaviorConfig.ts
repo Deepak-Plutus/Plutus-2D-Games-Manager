@@ -1,3 +1,8 @@
+/**
+ * Default settings for `JumpThruBehavior`.
+ *
+ * @type {const}
+ */
 export const jumpThruBehaviorDefaults = {
   collisionWidth: 0,
   collisionHeight: 0,

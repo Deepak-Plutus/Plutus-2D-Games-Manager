@@ -4,6 +4,15 @@ import type { BehaviorRuntimeContext } from './BehaviorRuntimeContext.js'
 
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Pointer-driven drag and drop behavior for display entities.
+ *
+ * Adds pointer listeners to the entity view and updates transform while the
+ * pointer is pressed. Emits drag lifecycle events for gameplay/UI reactions.
+ *
+ * @example
+ * { "type": "dragDrop", "axes": "both", "dragZOffset": 1200 }
+ */
 export class DragDropBehavior extends BaseBehavior {
   static type = 'dragDrop'
   static priority = 25
@@ -18,20 +27,42 @@ export class DragDropBehavior extends BaseBehavior {
   private _offY = 0
   private _baseZ = 0
 
+  /**
+   * Applies drag options from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.axes != null) this.axes = String(json.axes)
     if (json.dragThreshold != null) this.dragThreshold = Number(json.dragThreshold)
     if (json.dragZOffset != null) this.dragZOffset = Number(json.dragZOffset)
   }
 
+  /**
+   * Ends active drag state.
+   *
+   * @returns {void} Nothing.
+   */
   drop (): void {
     this._drag = false
   }
 
+  /**
+   * Reports whether the entity is currently being dragged.
+   *
+   * @returns {boolean} `true` when drag is active.
+   */
   isDragging (): boolean {
     return this._drag
   }
 
+  /**
+   * Wires pointer handlers and updates transform during drag.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled() || !ctx.displayView) return
     const view = ctx.displayView

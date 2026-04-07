@@ -24,12 +24,26 @@ type AssetEntry = {
   texture?: Texture
 }
 
+/**
+ * Normalizes tint into packed RGB value.
+ *
+ * @param {number} tint Arbitrary numeric tint.
+ * @returns {number} 24-bit RGB tint.
+ */
 function packRgbTint (tint: number): number {
   const n = Number(tint)
   if (!Number.isFinite(n)) return 0xffffff
   return (Math.trunc(n) >>> 0) & 0xffffff
 }
 
+/**
+ * Applies tint and blend mode to a Pixi display object.
+ *
+ * @param {Container & { tint: number; blendMode: BLEND_MODES }} view Display object.
+ * @param {number} tint Tint value.
+ * @param {string} blendMode Blend mode id.
+ * @returns {void} Nothing.
+ */
 function applyVisualStyle (view: Container & { tint: number; blendMode: BLEND_MODES }, tint: number, blendMode: string): void {
   view.tint = packRgbTint(tint)
   if (blendMode && blendMode !== 'normal') {
@@ -37,6 +51,14 @@ function applyVisualStyle (view: Container & { tint: number; blendMode: BLEND_MO
   }
 }
 
+/**
+ * Applies sprite data values to a Pixi `Sprite`.
+ *
+ * @param {SpriteData} data Sprite component data.
+ * @param {AssetEntry} entry Asset metadata.
+ * @param {Sprite} sprite Pixi sprite instance.
+ * @returns {void} Nothing.
+ */
 function applySpriteDataToPixiSprite (data: SpriteData, entry: AssetEntry, sprite: Sprite): void {
   sprite.anchor.set(data.anchorX, data.anchorY)
   if (entry.width != null) sprite.width = entry.width
@@ -44,10 +66,23 @@ function applySpriteDataToPixiSprite (data: SpriteData, entry: AssetEntry, sprit
   applyVisualStyle(sprite as unknown as Container & { tint: number; blendMode: BLEND_MODES }, data.tint, data.blendMode)
 }
 
+/**
+ * Converts tint to RGB value.
+ *
+ * @param {number} tint Tint value.
+ * @returns {number} Packed RGB tint.
+ */
 function tintToRgb (tint: number): number {
   return packRgbTint(tint)
 }
 
+/**
+ * Creates a circle graphics primitive from sprite data.
+ *
+ * @param {SpriteData} data Sprite component data.
+ * @param {Transform} transform Entity transform.
+ * @returns {Graphics} Circle graphics object.
+ */
 function createCircleGraphics (data: SpriteData, transform: Transform): Graphics {
   const r =
     data.circleRadius != null && data.circleRadius > 0
@@ -63,6 +98,12 @@ function createCircleGraphics (data: SpriteData, transform: Transform): Graphics
   return g
 }
 
+/**
+ * Creates a unit rect graphics primitive from sprite data.
+ *
+ * @param {SpriteData} data Sprite component data.
+ * @returns {Graphics} Rect graphics object.
+ */
 function createRectGraphics (data: SpriteData): Graphics {
   const g = new Graphics()
   g.rect(-0.5, -0.5, 1, 1)
@@ -73,6 +114,14 @@ function createRectGraphics (data: SpriteData): Graphics {
   return g
 }
 
+/**
+ * Applies tiled sprite data values to a Pixi `TilingSprite`.
+ *
+ * @param {TiledSpriteData} data Tiled sprite component data.
+ * @param {Texture} texture Source texture.
+ * @param {TilingSprite} ts Tiling sprite instance.
+ * @returns {void} Nothing.
+ */
 function applyTiledDataToPixi (data: TiledSpriteData, texture: Texture, ts: TilingSprite): void {
   ts.anchor.set(0.5, 0.5)
   const texW = texture.width || 1
@@ -83,6 +132,15 @@ function applyTiledDataToPixi (data: TiledSpriteData, texture: Texture, ts: Tili
   applyVisualStyle(ts as unknown as Container & { tint: number; blendMode: BLEND_MODES }, data.tint, data.blendMode)
 }
 
+/**
+ * Creates and mounts the appropriate Pixi view for an entity.
+ *
+ * @param {World} world ECS world.
+ * @param {number} entityId Entity id.
+ * @param {AssetRegistry} registry Loaded asset registry.
+ * @param {Container} stage World stage container.
+ * @returns {Container | null} Created view or null if not renderable.
+ */
 export function createPixiViewForEntity (
   world: World,
   entityId: number,
@@ -162,6 +220,16 @@ export function createPixiViewForEntity (
   return null
 }
 
+/**
+ * Replaces existing display view for an entity and mounts a fresh one.
+ *
+ * @param {World} world ECS world.
+ * @param {number} entityId Entity id.
+ * @param {AssetRegistry} registry Loaded asset registry.
+ * @param {Container} stage World stage container.
+ * @param {string} displayKey Display component key.
+ * @returns {Container | null} Newly mounted view.
+ */
 export function mountPixiDisplayForEntity (
   world: World,
   entityId: number,

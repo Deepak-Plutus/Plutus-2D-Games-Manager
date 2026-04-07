@@ -1,3 +1,8 @@
+/**
+ * Default settings for `TurretBehavior`.
+ *
+ * @type {const}
+ */
 export const turretBehaviorDefaults = {
   range: 400,
   rateOfFire: 2,

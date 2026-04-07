@@ -85,6 +85,13 @@ export type GameConfig = {
 
 export type GameConfigSchema = GameConfig
 
+/**
+ * Declares a strongly typed game config object with inference.
+ *
+ * @template T
+ * @param {T} config Config object.
+ * @returns {T} The same config object with inferred typing.
+ */
 export function defineGameConfig<T extends GameConfig> (config: T): T {
   return config
 }

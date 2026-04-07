@@ -1,5 +1,8 @@
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Core spatial transform component.
+ */
 export class Transform {
   x: number
   y: number
@@ -15,6 +18,12 @@ export class Transform {
     this.scaleY = scaleY
   }
 
+  /**
+   * Creates a transform from loosely typed JSON values.
+   *
+   * @param {JsonRecord} def Raw transform block.
+   * @returns {Transform}
+   */
   static fromJson (def: JsonRecord = {}): Transform {
     return new Transform(
       Number(def.x) || 0,

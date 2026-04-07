@@ -80,7 +80,10 @@ export class FlappyBirdGame extends BaseSystem {
   }
 
   /**
-   * @param {Record<string, unknown>} options
+   * Applies gameplay tunables from config.
+   *
+   * @param {Record<string, unknown>} options Game system options.
+   * @returns {void} Nothing.
    */
   configure(options: Record<string, unknown> = {}): void {
     if (options.birdAssetId != null) this.birdAssetId = String(options.birdAssetId);
@@ -102,6 +105,15 @@ export class FlappyBirdGame extends BaseSystem {
     if (options.powerupRadius != null) this.powerupRadius = Math.max(10, Number(options.powerupRadius) || this.powerupRadius);
   }
 
+  /**
+   * Sets runtime references and viewport size.
+   *
+   * @param {number} w View width.
+   * @param {number} h View height.
+   * @param {unknown} inputCoordinator Input coordinator instance.
+   * @param {EventTarget | null} inputHub Input event hub.
+   * @returns {void} Nothing.
+   */
   setRuntime(w: number, h: number, inputCoordinator: unknown, inputHub: EventTarget | null): void {
     this._layoutW = Number(w) || 800;
     this._layoutH = Number(h) || 600;
@@ -114,6 +126,14 @@ export class FlappyBirdGame extends BaseSystem {
     this._refreshStartPrompt();
   }
 
+  /**
+   * Sets screen-space UI root and dimensions.
+   *
+   * @param {Container | null} uiRoot UI layer container.
+   * @param {number} viewW View width.
+   * @param {number} viewH View height.
+   * @returns {void} Nothing.
+   */
   setScreenUi(uiRoot: Container | null, viewW: number, viewH: number): void {
     this._uiRoot = uiRoot;
     this._layoutW = Number(viewW) || this._layoutW;
@@ -123,6 +143,11 @@ export class FlappyBirdGame extends BaseSystem {
     this._createScoreUi();
   }
 
+  /**
+   * Binds flap input listeners.
+   *
+   * @returns {void} Nothing.
+   */
   _bindFlapInput(): void {
     if (this._flapUnsub) {
       this._flapUnsub();
@@ -141,6 +166,11 @@ export class FlappyBirdGame extends BaseSystem {
     this._flapUnsub = () => this._inputHub?.removeEventListener('pointer:down', onDown);
   }
 
+  /**
+   * Builds the score UI panel.
+   *
+   * @returns {void} Nothing.
+   */
   _createScoreUi(): void {
     if (!this._uiRoot) return;
     if (this._scorePanel) {
@@ -183,9 +213,10 @@ export class FlappyBirdGame extends BaseSystem {
   }
 
   /**
-   * @param {import('../ECS/World.js').World} _world
-   * @param {import('../Core/AssetRegistry.js').AssetRegistry} registry
-   * @param {import('pixi.js').Container} stage
+   * @param {import('../ECS/World.js').World} _world ECS world (unused).
+   * @param {import('../Core/AssetRegistry.js').AssetRegistry} registry Asset registry.
+   * @param {import('pixi.js').Container} stage World stage container.
+   * @returns {void} Nothing.
    */
   bootstrap(_world: unknown, registry: unknown, stage: Container): void {
     this._registry = registry;
@@ -195,6 +226,11 @@ export class FlappyBirdGame extends BaseSystem {
     this._resetRound();
   }
 
+  /**
+   * Recomputes responsive gameplay metrics.
+   *
+   * @returns {void} Nothing.
+   */
   _applyResponsiveMetrics(): void {
     this.groundHeight = Math.max(72, Math.floor(this._layoutH * 0.13));
     const mobile = this._layoutW <= 768;
@@ -208,6 +244,11 @@ export class FlappyBirdGame extends BaseSystem {
     this.pipeGap = Math.max(140, Math.min(220, maxGap));
   }
 
+  /**
+   * Recreates scene graph nodes.
+   *
+   * @returns {void} Nothing.
+   */
   _rebuildScene(): void {
     const stage = this._stage;
     if (!stage) return;
@@ -293,7 +334,10 @@ export class FlappyBirdGame extends BaseSystem {
   }
 
   /**
-   * @param {{ top: Graphics, bottom: Graphics }} pair
+   * Returns a pipe pair to the reusable pool.
+   *
+   * @param {{ top: Graphics, bottom: Graphics }} pair Pipe graphics pair.
+   * @returns {void} Nothing.
    */
   _releasePipePairViews(pair: { top: Graphics; bottom: Graphics }): void {
     pair.top.visible = false;
@@ -437,8 +481,11 @@ export class FlappyBirdGame extends BaseSystem {
   }
 
   /**
-   * @param {number} x
-   * @param {number} y
+   * Checks if a new powerup would overlap existing active powerups.
+   *
+   * @param {number} x Candidate x position.
+   * @param {number} y Candidate y position.
+   * @returns {boolean} True when overlap is detected.
    */
   _wouldPowerupOverlap(x: number, y: number): boolean {
     const minDist = this.powerupRadius * 2.2;

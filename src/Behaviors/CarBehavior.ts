@@ -6,6 +6,18 @@ import type { BehaviorRuntimeContext } from './BehaviorRuntimeContext.js'
 const DEG = Math.PI / 180
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Arcade-style car controller behavior.
+ *
+ * Supports:
+ * - keyboard control via `keyBindings`
+ * - simulated one-frame controls via `simulateControl()`
+ * - acceleration/deceleration steering model
+ *
+ * @example
+ * // JSON behavior config
+ * { "type": "car", "maxSpeed": 300, "steerSpeed": 110 }
+ */
 export class CarBehavior extends BaseBehavior {
   static type = 'car'
   static priority = 14
@@ -23,6 +35,12 @@ export class CarBehavior extends BaseBehavior {
   private _simAccel = 0
   private _simSteer = 0
 
+  /**
+   * Applies driving parameters and key bindings from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config object.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.maxSpeed != null) this.maxSpeed = Number(json.maxSpeed)
     if (json.acceleration != null) this.acceleration = Number(json.acceleration)
@@ -33,6 +51,15 @@ export class CarBehavior extends BaseBehavior {
     if (json.keyBindings != null && typeof json.keyBindings === 'object') this.updateKeyBindings(json.keyBindings as JsonRecord)
   }
 
+  /**
+   * Merges partial keybinding definitions into existing bindings.
+   *
+   * @param {JsonRecord} partial Map of action -> key code array.
+   * @returns {void} Nothing.
+   *
+   * @example
+   * behavior.updateKeyBindings({ steerLeft: ['ArrowLeft', 'KeyA'] })
+   */
   updateKeyBindings (partial: JsonRecord): void {
     for (const [action, codes] of Object.entries(partial)) {
       if (!Array.isArray(codes)) continue
@@ -40,6 +67,16 @@ export class CarBehavior extends BaseBehavior {
     }
   }
 
+  /**
+   * Injects one frame of simulated control input.
+   *
+   * Accepted aliases include:
+   * `accelerate|forward|up`, `brake|reverse|down`,
+   * `steerLeft|left`, `steerRight|right`.
+   *
+   * @param {string} control Control label to apply for the next tick.
+   * @returns {void} Nothing.
+   */
   simulateControl (control: string): void {
     const c = String(control).toLowerCase().trim()
     if (c === 'accelerate' || c === 'forward' || c === 'up') this._simAccel += 1
@@ -48,10 +85,21 @@ export class CarBehavior extends BaseBehavior {
     if (c === 'steerright' || c === 'right') this._simSteer += 1
   }
 
+  /**
+   * Immediately zeroes current speed.
+   *
+   * @returns {void} Nothing.
+   */
   stop (): void {
     this._speed = 0
   }
 
+  /**
+   * Advances car movement and heading each frame.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled()) return
     const { transform, dt, input } = ctx
@@ -82,6 +130,14 @@ export class CarBehavior extends BaseBehavior {
   }
 }
 
+/**
+ * Moves a scalar value toward a target by a bounded step.
+ *
+ * @param {number} cur Current value.
+ * @param {number} target Desired value.
+ * @param {number} maxStep Maximum absolute movement allowed this call.
+ * @returns {number} Next value after bounded movement.
+ */
 function moveToward (cur: number, target: number, maxStep: number): number {
   const d = target - cur
   if (Math.abs(d) <= maxStep) return target

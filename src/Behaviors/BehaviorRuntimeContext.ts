@@ -8,6 +8,12 @@ import type { ColliderAabb } from '../Core/CollisionService.js'
 import type { InputEventHub } from '../Core/InputEventHub.js'
 import type { InputCoordinator } from '../Core/InputCoordinator.js'
 
+/**
+ * Per-frame runtime context passed to each behavior tick.
+ *
+ * Includes entity-local state (`transform`), world/services references, input,
+ * collision snapshots, and optional rendering helpers.
+ */
 export type BehaviorRuntimeContext = {
   entityId: number
   transform: Transform

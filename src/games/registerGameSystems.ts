@@ -8,6 +8,12 @@ import { StealthAssassinGame } from './StealthAssassinGame.js'
 
 type GameSystemEntry = { name: string; system: BaseSystem }
 
+/**
+ * Registers game-specific system factories with enablement predicates.
+ *
+ * @param {SystemFactoryRegistry} registry System factory registry.
+ * @returns {void} Nothing.
+ */
 export function registerGameSystemFactories (registry: SystemFactoryRegistry): void {
   registry.register({
     name: 'platformerGame',
@@ -36,6 +42,12 @@ export function registerGameSystemFactories (registry: SystemFactoryRegistry): v
   })
 }
 
+/**
+ * Creates enabled game systems for a given config.
+ *
+ * @param {GameConfig} config Game config.
+ * @returns {GameSystemEntry[]} Enabled game system entries in resolved order.
+ */
 export function createGameSystemsForConfig (config: GameConfig): GameSystemEntry[] {
   const registry = new SystemFactoryRegistry()
   registerGameSystemFactories(registry)

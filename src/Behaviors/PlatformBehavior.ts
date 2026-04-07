@@ -8,6 +8,12 @@ type KeyBindings = { left: string[]; right: string[]; jump: string[] } & Record<
 
 /**
  * Construct 3-style Platform movement with solid/jump-thru support.
+ *
+ * Provides keyboard/simulated input, acceleration, gravity, jump sustain,
+ * and collision solving against solid/jump-thru colliders.
+ *
+ * @example
+ * { "type": "platform", "maxSpeed": 320, "jumpStrength": 560 }
  */
 export class PlatformBehavior extends BaseBehavior {
   static type = 'platform';
@@ -64,6 +70,12 @@ export class PlatformBehavior extends BaseBehavior {
     this._simJump = false;
   }
 
+  /**
+   * Applies movement and control properties from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties(json: JsonRecord): void {
     if (json.maxSpeed != null) this.maxSpeed = Number(json.maxSpeed);
     if (json.acceleration != null) this.acceleration = Number(json.acceleration);
@@ -79,6 +91,12 @@ export class PlatformBehavior extends BaseBehavior {
     }
   }
 
+  /**
+   * Merges keybinding overrides.
+   *
+   * @param {JsonRecord} partial Partial keybinding map.
+   * @returns {void} Nothing.
+   */
   updateKeyBindings(partial: JsonRecord): void {
     if (!partial || typeof partial !== 'object') return;
     for (const [action, codes] of Object.entries(partial)) {
@@ -87,6 +105,12 @@ export class PlatformBehavior extends BaseBehavior {
     }
   }
 
+  /**
+   * Injects one-frame simulated control input.
+   *
+   * @param {string} control Control label (left/right/jump aliases).
+   * @returns {void} Nothing.
+   */
   simulateControl(control: string): void {
     const c = String(control).toLowerCase().trim();
     const key = c as keyof typeof PLATFORM_SIMULATE_CONTROL_MAP;
@@ -97,19 +121,47 @@ export class PlatformBehavior extends BaseBehavior {
     if (prop === '_simJump') this._simJump = true;
   }
 
+  /**
+   * Sets current horizontal velocity.
+   *
+   * @param {number} v New velocity X.
+   * @returns {void} Nothing.
+   */
   setVectorX(v: number): void {
     this._vx = Number(v);
   }
+  /**
+   * Sets current vertical velocity.
+   *
+   * @param {number} v New velocity Y.
+   * @returns {void} Nothing.
+   */
   setVectorY(v: number): void {
     this._vy = Number(v);
   }
+  /**
+   * Current vertical velocity.
+   *
+   * @returns {number} Current vertical velocity.
+   */
   get vectorY(): number {
     return this._vy;
   }
+  /**
+   * Whether character is grounded after last integration step.
+   *
+   * @returns {boolean} True when grounded.
+   */
   get isOnFloor(): boolean {
     return this._onFloor;
   }
 
+  /**
+   * Performs one platformer movement simulation step.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick(ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled()) return;
 

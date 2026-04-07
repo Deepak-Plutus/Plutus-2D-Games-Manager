@@ -1,5 +1,8 @@
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Health pool component.
+ */
 export class Health {
   current: number
   max: number
@@ -9,11 +12,20 @@ export class Health {
     this.max = Number(opts.max ?? opts.maximum ?? this.current)
   }
 
+  /**
+   * Parses health values from JSON.
+   *
+   * @param {JsonRecord} json Raw health block.
+   * @returns {Health}
+   */
   static fromJson (json: JsonRecord = {}): Health {
     return new Health(json)
   }
 }
 
+/**
+ * Damage payload component.
+ */
 export class Damage {
   amount: number
   type: string
@@ -25,11 +37,20 @@ export class Damage {
     this.knockback = Number(opts.knockback) || 0
   }
 
+  /**
+   * Parses damage values from JSON.
+   *
+   * @param {JsonRecord} json Raw damage block.
+   * @returns {Damage}
+   */
   static fromJson (json: JsonRecord = {}): Damage {
     return new Damage(json)
   }
 }
 
+/**
+ * Armor/mitigation component.
+ */
 export class Armor {
   value: number
   type: string
@@ -39,11 +60,20 @@ export class Armor {
     this.type = String(opts.type ?? 'flat')
   }
 
+  /**
+   * Parses armor values from JSON.
+   *
+   * @param {JsonRecord} json Raw armor block.
+   * @returns {Armor}
+   */
   static fromJson (json: JsonRecord = {}): Armor {
     return new Armor(json)
   }
 }
 
+/**
+ * Collectible item state component.
+ */
 export class Collectible {
   kind: string
   scoreValue: number
@@ -55,11 +85,20 @@ export class Collectible {
     this.pickedUp = !!opts.pickedUp
   }
 
+  /**
+   * Parses collectible values from JSON.
+   *
+   * @param {JsonRecord} json Raw collectible block.
+   * @returns {Collectible}
+   */
   static fromJson (json: JsonRecord = {}): Collectible {
     return new Collectible(json)
   }
 }
 
+/**
+ * Score tracker component.
+ */
 export class Score {
   value: number
   highScore: number
@@ -69,6 +108,12 @@ export class Score {
     this.highScore = Number(opts.highScore) || 0
   }
 
+  /**
+   * Parses score values from JSON.
+   *
+   * @param {JsonRecord} json Raw score block.
+   * @returns {Score}
+   */
   static fromJson (json: JsonRecord = {}): Score {
     return new Score(json)
   }

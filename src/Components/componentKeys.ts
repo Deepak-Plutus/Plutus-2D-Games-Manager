@@ -52,6 +52,9 @@ export const COMPONENT_GROUP = 'group'
 /** Follow target + bounds; evaluated in BehaviorSystem */
 export const COMPONENT_CAMERA = 'camera'
 
+/**
+ * Union of all known ECS component key string literals.
+ */
 export type ComponentKey =
   | typeof COMPONENT_TRANSFORM
   | typeof COMPONENT_DISPLAY

@@ -8,6 +8,12 @@ type FollowSample = {
 }
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Delayed follower behavior with optional transform/display channel syncing.
+ *
+ * Stores sampled snapshots of a source entity and interpolates a delayed
+ * state, allowing smooth trailing and copy-channel effects.
+ */
 export class FollowBehavior extends BaseBehavior {
   static type = 'follow'
   static priority = 22
@@ -33,6 +39,12 @@ export class FollowBehavior extends BaseBehavior {
   private _entries: FollowSample[] = []
   private _histAcc = 0
 
+  /**
+   * Applies follow timing, channels, and movement options from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     Object.assign(this, {
       targetName: json.targetName != null ? String(json.targetName) : this.targetName,
@@ -56,6 +68,12 @@ export class FollowBehavior extends BaseBehavior {
     this.historyMaxEntries = Math.min(10, Math.max(1, Math.floor(Number(this.historyMaxEntries)) || 10))
   }
 
+  /**
+   * Samples target history and applies delayed follow state.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled() || !this.following) return
     const { transform, world, dt, entityId, displayView, time: gameTime = 0 } = ctx
@@ -109,6 +127,12 @@ export class FollowBehavior extends BaseBehavior {
     }
   }
 
+  /**
+   * Appends a snapshot and trims history by configured capacity.
+   *
+   * @param {FollowSample} s Snapshot sample.
+   * @returns {void} Nothing.
+   */
   private _pushEntry (s: FollowSample): void {
     this._entries.push(s)
     const cap = Math.min(10, Math.max(1, Math.floor(this.historyMaxEntries) || 10))
@@ -116,6 +140,14 @@ export class FollowBehavior extends BaseBehavior {
   }
 }
 
+/**
+ * Captures transform/display state for history interpolation.
+ *
+ * @param {number} eid Entity id to sample.
+ * @param {BehaviorRuntimeContext['world']} world World reference.
+ * @param {number} t Sample timestamp.
+ * @returns {FollowSample | null} Snapshot or null when transform is missing.
+ */
 function captureSnapshot (eid: number, world: BehaviorRuntimeContext['world'], t: number): FollowSample | null {
   const tr = world.getComponent(eid, COMPONENT_TRANSFORM) as { x: number; y: number; rotation: number } | undefined
   if (!tr) return null
@@ -124,6 +156,13 @@ function captureSnapshot (eid: number, world: BehaviorRuntimeContext['world'], t
   return { t, x: tr.x, y: tr.y, rotation: tr.rotation, width: v?.width ?? 0, height: v?.height ?? 0, alpha: v?.alpha ?? 1, visible: v?.visible !== false }
 }
 
+/**
+ * Interpolates delayed follow sample from history entries.
+ *
+ * @param {FollowSample[]} entries Snapshot history.
+ * @param {number} targetT Desired sample time.
+ * @returns {FollowSample | null} Interpolated sample.
+ */
 function sampleHistory (entries: FollowSample[], targetT: number): FollowSample | null {
   if (entries.length === 0) return null
   const first = entries[0]
@@ -144,12 +183,28 @@ function sampleHistory (entries: FollowSample[], targetT: number): FollowSample 
   return last
 }
 
+/**
+ * Interpolates angles in radians using shortest arc.
+ *
+ * @param {number} a Start angle.
+ * @param {number} b End angle.
+ * @param {number} t Interpolation factor [0..1].
+ * @returns {number} Interpolated angle.
+ */
 function lerpAngleRad (a: number, b: number, t: number): number {
   let d = b - a
   while (d > Math.PI) d -= 2 * Math.PI
   while (d < -Math.PI) d += 2 * Math.PI
   return a + d * t
 }
+/**
+ * Moves scalar toward target by bounded step.
+ *
+ * @param {number} current Current value.
+ * @param {number} target Target value.
+ * @param {number} maxStep Maximum change allowed.
+ * @returns {number} Next value after stepping.
+ */
 function moveToward (current: number, target: number, maxStep: number): number {
   const d = target - current
   if (Math.abs(d) <= maxStep) return target

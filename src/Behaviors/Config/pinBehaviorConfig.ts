@@ -1,3 +1,8 @@
+/**
+ * Default settings for `PinBehavior`.
+ *
+ * @type {const}
+ */
 export const pinBehaviorDefaults = {
   pinned: false,
   pinnedObjectName: '',

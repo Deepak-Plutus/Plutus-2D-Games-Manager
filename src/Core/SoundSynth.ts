@@ -6,12 +6,20 @@ export type ToneStep = {
   volume?: number;
 };
 
+/**
+ * Singleton WebAudio tone synthesizer used by game systems.
+ */
 export class SoundSynth {
   private static _instance: SoundSynth | null = null;
   private _audioCtx: AudioContext | null = null;
   private _audioReady = false;
   private _masterVolume = 0.08;
 
+  /**
+   * Returns shared synthesizer instance.
+   *
+   * @returns {SoundSynth} Shared synthesizer instance.
+   */
   static getInstance(): SoundSynth {
     if (!SoundSynth._instance) SoundSynth._instance = new SoundSynth();
     return SoundSynth._instance;
@@ -19,10 +27,21 @@ export class SoundSynth {
 
   private constructor() {}
 
+  /**
+   * Sets master output volume in [0,1].
+   *
+   * @param {number} volume Master volume.
+   * @returns {void} Nothing.
+   */
   setMasterVolume(volume: number): void {
     this._masterVolume = Math.max(0, Math.min(1, Number(volume) || 0.08));
   }
 
+  /**
+   * Creates/resumes audio context to satisfy browser gesture restrictions.
+   *
+   * @returns {void} Nothing.
+   */
   unlock(): void {
     if (typeof window === 'undefined') return;
     if (!this._audioCtx) {
@@ -34,6 +53,13 @@ export class SoundSynth {
     this._audioReady = this._audioCtx.state === 'running';
   }
 
+  /**
+   * Plays a short sequence of oscillator tones.
+   *
+   * @param {ToneStep[]} steps Tone sequence.
+   * @param {{ masterVolume?: number } | undefined} options Playback options.
+   * @returns {void} Nothing.
+   */
   playSequence(steps: ToneStep[], options?: { masterVolume?: number }): void {
     this.unlock();
     if (!this._audioCtx || !this._audioReady) return;

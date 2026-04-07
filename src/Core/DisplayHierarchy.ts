@@ -14,6 +14,14 @@ type LocalTransform = {
   scaleY: number
 }
 
+/**
+ * Resolves the Pixi parent container used to mount an entity display object.
+ *
+ * @param {World} world ECS world.
+ * @param {number} entityId Child entity id.
+ * @param {Container} stage Fallback stage/root container.
+ * @returns {Container} Parent container.
+ */
 export function getDisplayMountParent (world: World, entityId: number, stage: Container): Container {
   const grp = world.getComponent<GroupShape>(entityId, COMPONENT_GROUP)
   const pid = grp?.parentEntityId
@@ -26,6 +34,14 @@ export function getDisplayMountParent (world: World, entityId: number, stage: Co
   return stage
 }
 
+/**
+ * Converts world transform into local transform relative to display parent.
+ *
+ * @param {World} world ECS world.
+ * @param {number} entityId Entity id to resolve.
+ * @param {Transform} transform World-space transform.
+ * @returns {LocalTransform} Parent-local transform values.
+ */
 export function getLocalDisplayTransform (
   world: World,
   entityId: number,

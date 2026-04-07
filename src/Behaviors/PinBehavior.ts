@@ -5,6 +5,11 @@ import { pinBehaviorDefaults } from './Config/pinBehaviorConfig.js'
 
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Pins transform/display channels to another entity by meta name.
+ *
+ * Can optionally destroy this entity when pinned target disappears.
+ */
 export class PinBehavior extends BaseBehavior {
   static type = 'pin'
   static priority = 92
@@ -28,6 +33,12 @@ export class PinBehavior extends BaseBehavior {
   private _scaleWX = 1
   private _scaleHY = 1
 
+  /**
+   * Applies pin target/channel settings from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.pinned != null) this.pinned = !!json.pinned
     if (json.pinnedObjectName != null) this.pinnedObjectName = String(json.pinnedObjectName)
@@ -41,6 +52,12 @@ export class PinBehavior extends BaseBehavior {
     if (json.destroyWithPinned != null) this.destroyWithPinned = !!json.destroyWithPinned
   }
 
+  /**
+   * Synchronizes this entity to the pinned target transform/display channels.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled() || !this.pinned || !this.pinnedObjectName) return
     const { world, entityId, transform, displayView } = ctx

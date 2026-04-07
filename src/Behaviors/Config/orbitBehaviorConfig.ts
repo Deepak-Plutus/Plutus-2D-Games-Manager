@@ -1,3 +1,8 @@
+/**
+ * Default settings for `OrbitBehavior`.
+ *
+ * @type {const}
+ */
 export const orbitBehaviorDefaults = {
   speed: 45,
   acceleration: 0,

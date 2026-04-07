@@ -1,13 +1,28 @@
 import type { GameConfig } from './GameConfig.js'
 import { validateGameConfigShape } from './ConfigValidation.js'
 
+/**
+ * Loads and parses game config JSON.
+ */
 export class ConfigLoader {
+  /**
+   * Fetches config text from URL.
+   *
+   * @param {string} url Config URL.
+   * @returns {Promise<string>} Raw config text.
+   */
   static async fetch (url: string): Promise<string> {
     const res = await globalThis.fetch(url, { credentials: 'same-origin' })
     if (!res.ok) throw new Error(`Config fetch failed (${res.status}): ${url}`)
     return res.text()
   }
 
+  /**
+   * Parses config JSON text and validates basic shape.
+   *
+   * @param {string} text Raw JSON text.
+   * @returns {GameConfig} Parsed and validated config object.
+   */
   static parse (text: string): GameConfig {
     let data: unknown
     try {

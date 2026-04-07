@@ -14,6 +14,13 @@ export type SystemFactoryDefinition = {
 
 export type SystemFactoryEntry = { name: string; system: BaseSystem }
 
+/**
+ * Checks whether config contains a given top-level block key.
+ *
+ * @param {GameConfig} config Game config.
+ * @param {string} key Config key.
+ * @returns {boolean} True when the config block exists.
+ */
 function hasConfigBlock (config: GameConfig, key: string): boolean {
   const v = config[key]
   if (v == null) return false
@@ -21,11 +28,24 @@ function hasConfigBlock (config: GameConfig, key: string): boolean {
   return true
 }
 
+/**
+ * Sort comparator by system phase.
+ *
+ * @param {SystemFactoryDefinition} a First definition.
+ * @param {SystemFactoryDefinition} b Second definition.
+ * @returns {number} Phase ordering comparator result.
+ */
 function compareByPhase (a: SystemFactoryDefinition, b: SystemFactoryDefinition): number {
   const rank: Record<SystemPhase, number> = { pre: 0, gameplay: 1, post: 2 }
   return (rank[a.phase ?? 'gameplay'] ?? 1) - (rank[b.phase ?? 'gameplay'] ?? 1)
 }
 
+/**
+ * Performs dependency-aware ordering of system definitions.
+ *
+ * @param {SystemFactoryDefinition[]} defs Definitions to sort.
+ * @returns {SystemFactoryDefinition[]} Dependency-sorted definitions.
+ */
 function topoSort (defs: SystemFactoryDefinition[]): SystemFactoryDefinition[] {
   const orderedByPhase = [...defs].sort(compareByPhase)
   const byName = new Map(orderedByPhase.map(d => [d.name, d] as const))
@@ -51,13 +71,29 @@ function topoSort (defs: SystemFactoryDefinition[]): SystemFactoryDefinition[] {
   return out
 }
 
+/**
+ * Registry resolving enabled systems from config and dependency metadata.
+ */
 export class SystemFactoryRegistry {
   private _definitions: SystemFactoryDefinition[] = []
 
+  /**
+   * Registers a system factory definition.
+   *
+   * @param {SystemFactoryDefinition} definition System factory definition.
+   * @returns {void} Nothing.
+   */
   register (definition: SystemFactoryDefinition): void {
     this._definitions.push(definition)
   }
 
+  /**
+   * Builds ordered system instances for a specific config.
+   *
+   * @param {GameConfig} config Game config.
+   * @param {string[]} systemsOrder Optional explicit priority order.
+   * @returns {SystemFactoryEntry[]} Ordered system instances.
+   */
   resolveForConfig (config: GameConfig, systemsOrder: string[] = []): SystemFactoryEntry[] {
     const enabledDefs = this._definitions.filter(def => {
       const requires = def.requiresConfigBlocks ?? []

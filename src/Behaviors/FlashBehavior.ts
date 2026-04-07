@@ -5,6 +5,14 @@ import { flashBehaviorDefaults } from './Config/flashBehaviorConfig.js'
 
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Tint-flash behavior that toggles display tint in timed pulses.
+ *
+ * Designed for hit feedback and warning cues without touching scale/size.
+ *
+ * @example
+ * { "type": "flash", "repeatCount": 4, "flashTint": "#ff4d4f", "offDuration": 0.08 }
+ */
 export class FlashBehavior extends BaseBehavior {
   static type = 'flash'
   static priority = 41
@@ -19,6 +27,12 @@ export class FlashBehavior extends BaseBehavior {
   private _tl: gsap.core.Timeline | null = null
   private _started = false
 
+  /**
+   * Applies flash timings, repeat count, and tint colors from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config object.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.onDuration != null) this.onDuration = Number(json.onDuration)
     if (json.offDuration != null) this.offDuration = Number(json.offDuration)
@@ -28,12 +42,25 @@ export class FlashBehavior extends BaseBehavior {
     if (json.ease != null) this.ease = String(json.ease)
   }
 
+  /**
+   * Stops and resets current flash sequence.
+   *
+   * @returns {void} Nothing.
+   */
   restart (): void {
     this._tl?.kill()
     this._tl = null
     this._started = false
   }
 
+  /**
+   * Starts a one-time flash timeline when a display view exists.
+   *
+   * Emits `flash:complete` at the end of the sequence.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled() || !ctx.displayView || this._started) return
     this._started = true

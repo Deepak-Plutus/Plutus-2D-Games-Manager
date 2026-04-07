@@ -1,3 +1,8 @@
+/**
+ * Default settings for `SolidBehavior`.
+ *
+ * @type {const}
+ */
 export const solidBehaviorDefaults = {
   collisionWidth: 0,
   collisionHeight: 0,

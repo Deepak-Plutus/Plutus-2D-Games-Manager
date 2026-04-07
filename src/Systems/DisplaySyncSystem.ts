@@ -9,18 +9,37 @@ type DisplayComp = { view?: (Container & { userData?: { plutusCircle?: boolean }
 type LayerComp = { zIndex?: number }
 type MetaComp = { visible?: boolean }
 
+/**
+ * Syncs ECS transforms/layer/meta data to mounted Pixi display objects.
+ */
 export class DisplaySyncSystem extends BaseSystem {
   stage: Container | null
 
+  /**
+   * @param {Container | null} stage Optional default stage container.
+   */
   constructor (stage: Container | null = null) {
     super()
     this.stage = stage
   }
 
+  /**
+   * Sets the stage used for display parent resolution.
+   *
+   * @param {Container | null} stage Stage container.
+   * @returns {void} Nothing.
+   */
   setStage (stage: Container | null): void {
     this.stage = stage
   }
 
+  /**
+   * Updates all mounted display objects for current frame.
+   *
+   * @param {number} _dt Delta time in seconds.
+   * @param {World} world ECS world.
+   * @returns {void} Nothing.
+   */
   update (_dt: number, world: World): void {
     if (!this.enabled || !world) return
     const stage = this.stage

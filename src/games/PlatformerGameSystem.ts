@@ -59,7 +59,10 @@ export class PlatformerGameSystem extends BaseSystem {
   }
 
   /**
-   * @param {Record<string, unknown>} options
+   * Applies platformer config options.
+   *
+   * @param {Record<string, unknown>} options System options.
+   * @returns {void} Nothing.
    */
   configure(options: Record<string, unknown> = {}): void {
     if (options.playerMetaName != null) this.playerMetaName = String(options.playerMetaName);
@@ -74,6 +77,7 @@ export class PlatformerGameSystem extends BaseSystem {
    * @param {import('pixi.js').Container | null} uiRoot screen-fixed layer (sibling of world, not scrolled)
    * @param {number} viewWidth logical view width (e.g. app / canvas size)
    * @param {number} viewHeight logical view height
+   * @returns {void} Nothing.
    */
   setScreenUi(uiRoot: Container | null, viewWidth: number, viewHeight: number): void {
     this._ensureBungeeFontLoaded();
@@ -95,6 +99,11 @@ export class PlatformerGameSystem extends BaseSystem {
     this._finalScore = 0;
   }
 
+  /**
+   * Ensures the Bungee font stylesheet is loaded once.
+   *
+   * @returns {void} Nothing.
+   */
   _ensureBungeeFontLoaded(): void {
     if (typeof document === 'undefined') return;
     if (document.querySelector('link[data-font="bungee-platformer"]')) return;
@@ -120,15 +129,20 @@ export class PlatformerGameSystem extends BaseSystem {
   }
 
   /**
-   * @param {(frozen: boolean) => void} fn
+   * Sets callback to freeze/unfreeze gameplay systems.
+   *
+   * @param {(frozen: boolean) => void} fn Freeze callback.
+   * @returns {void} Nothing.
    */
   setFreezeCallback(fn: ((frozen: boolean) => void) | null): void {
     this._freeze = typeof fn === 'function' ? fn : null;
   }
 
   /**
-   * @param {import('../ECS/World.js').World} world
-   * @param {string} tag
+   * @param {import('../ECS/World.js').World} world ECS world.
+   * @param {number} entityId Entity id to inspect.
+   * @param {string} tag Tag to check.
+   * @returns {boolean} True when tag exists.
    */
   _entityHasTag(world: any, entityId: number, tag: string): boolean {
     const m = world.getComponent(entityId, COMPONENT_META);
@@ -416,8 +430,12 @@ export class PlatformerGameSystem extends BaseSystem {
   }
 
   /**
-   * @param {string} message
-   * @param {number} textFill
+   * Shows end-game overlay panel.
+   *
+   * @param {string} title Heading text.
+   * @param {string} message Body text.
+   * @param {number} textFill Heading color.
+   * @returns {void} Nothing.
    */
   _showEndPanel(title: string, message: string, textFill: number): void {
     if (!this._uiRoot) return;

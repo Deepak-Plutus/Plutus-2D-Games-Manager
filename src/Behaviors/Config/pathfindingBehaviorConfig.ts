@@ -1,3 +1,8 @@
+/**
+ * Default settings for `PathfindingBehavior`.
+ *
+ * @type {const}
+ */
 export const pathfindingBehaviorDefaults = {
   cellSize: 32,
   maxCellsWidth: 256,

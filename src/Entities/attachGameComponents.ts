@@ -53,6 +53,14 @@ import type { World } from '../ECS/World.js'
 
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Attaches supported gameplay components from merged entity JSON.
+ *
+ * @param {World} world ECS world.
+ * @param {number} entityId Target entity id.
+ * @param {JsonRecord} merged Merged instance/objectType JSON.
+ * @returns {void} Nothing.
+ */
 export function attachGameComponents (world: World, entityId: number, merged: JsonRecord): void {
   if (merged.sprite && typeof merged.sprite === 'object' && !Array.isArray(merged.sprite)) {
     const sd = merged.sprite as JsonRecord

@@ -6,6 +6,13 @@ type DefaultBootstrapHooks = {
   bootstrapGameSystems: (ctx: BootstrapContext) => void
 }
 
+/**
+ * Registers default bootstrap hook wiring for system start/entity spawn/game boot.
+ *
+ * @param {BootstrapContributionRegistry} registry Contribution registry.
+ * @param {DefaultBootstrapHooks} hooks Hook implementation bundle.
+ * @returns {void} Nothing.
+ */
 export function registerDefaultBootstrapContributions (
   registry: BootstrapContributionRegistry,
   hooks: DefaultBootstrapHooks

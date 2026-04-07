@@ -16,13 +16,28 @@ export type ComponentParserContext = {
 
 export type ComponentParser = (ctx: ComponentParserContext) => void
 
+/**
+ * Ordered registry of component parsers used during entity build.
+ */
 export class ComponentParserRegistry {
   private _parsers: ComponentParser[] = []
 
+  /**
+   * Adds a parser to the execution chain.
+   *
+   * @param {ComponentParser} parser Parser callback.
+   * @returns {void} Nothing.
+   */
   register (parser: ComponentParser): void {
     this._parsers.push(parser)
   }
 
+  /**
+   * Executes all registered parsers with shared context.
+   *
+   * @param {ComponentParserContext} ctx Parse context.
+   * @returns {void} Nothing.
+   */
   run (ctx: ComponentParserContext): void {
     for (const parser of this._parsers) parser(ctx)
   }

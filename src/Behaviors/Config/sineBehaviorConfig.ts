@@ -1,3 +1,8 @@
+/**
+ * Default settings for `SineBehavior`.
+ *
+ * @type {const}
+ */
 export const sineBehaviorDefaults = {
   movement: 'horizontal',
   wave: 'sine',

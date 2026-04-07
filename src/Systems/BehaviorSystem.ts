@@ -15,6 +15,9 @@ import type { InputCoordinator } from '../Core/InputCoordinator.js'
 type ScrollPoint = { x: number; y: number }
 type ShakeState = { timeLeft: number; magnitude: number; reducing: boolean; totalDuration: number }
 
+/**
+ * Runs entity behaviors and applies camera/scroll effects each frame.
+ */
 export class BehaviorSystem extends BaseSystem {
   static inputRequirements = { keyboard: true, pointer: true, wheel: false, gamepad: false }
   behaviorRegistry: BehaviorRegistry
@@ -33,6 +36,9 @@ export class BehaviorSystem extends BaseSystem {
   private _cameraOverridesScroll: boolean
   private _cameraZoom: number
 
+  /**
+   * @param {BehaviorRegistry} behaviorRegistry Behavior runtime dispatcher.
+   */
   constructor (behaviorRegistry: BehaviorRegistry) {
     super()
     this.behaviorRegistry = behaviorRegistry
@@ -55,6 +61,11 @@ export class BehaviorSystem extends BaseSystem {
     this._cameraZoom = 1
   }
 
+  /**
+   * Provides runtime dependencies consumed by behavior ticks.
+   *
+   * @returns {void} Nothing.
+   */
   setRuntime (
     w: number,
     h: number,
@@ -75,6 +86,13 @@ export class BehaviorSystem extends BaseSystem {
     this.inputCoordinator = inputCoordinator
   }
 
+  /**
+   * Updates all entity behaviors and camera state.
+   *
+   * @param {number} dt Delta time in seconds.
+   * @param {World} world ECS world.
+   * @returns {void} Nothing.
+   */
   update (dt: number, world: World): void {
     if (!this.enabled || !world) return
     this.time += dt
@@ -112,6 +130,9 @@ export class BehaviorSystem extends BaseSystem {
     this._applyScrollCamera(dt)
   }
 
+  /**
+   * Computes camera follow target and smoothing.
+   */
   private _applyCameraFollow (dt: number, world: World): void {
     this._cameraOverridesScroll = false
     this._cameraZoom = 1
@@ -161,6 +182,9 @@ export class BehaviorSystem extends BaseSystem {
     this._focusY += (ty - this._focusY) * k
   }
 
+  /**
+   * Applies final stage scale/position using focus and shake.
+   */
   private _applyScrollCamera (dt: number): void {
     if (!this.stage) return
     const shake = this.scrollState.shake

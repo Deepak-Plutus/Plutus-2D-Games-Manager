@@ -1,5 +1,8 @@
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Sprite rendering component data.
+ */
 export class SpriteData {
   assetId: string
   tint: number
@@ -26,6 +29,12 @@ export class SpriteData {
     this.height = opts.height != null && Number(opts.height) > 0 ? Number(opts.height) : null
   }
 
+  /**
+   * Parses sprite data from JSON.
+   *
+   * @param {JsonRecord} json Raw sprite block.
+   * @returns {SpriteData}
+   */
   static fromJson (json: JsonRecord = {}): SpriteData {
     return new SpriteData({
       assetId: json.assetId,
@@ -41,6 +50,9 @@ export class SpriteData {
   }
 }
 
+/**
+ * Tiled/repeating sprite rendering component data.
+ */
 export class TiledSpriteData {
   assetId: string
   tileWidth: number
@@ -64,6 +76,12 @@ export class TiledSpriteData {
     this.blendMode = opts.blendMode != null ? String(opts.blendMode) : 'normal'
   }
 
+  /**
+   * Parses tiled sprite data from JSON.
+   *
+   * @param {JsonRecord} json Raw tiled sprite block.
+   * @returns {TiledSpriteData}
+   */
   static fromJson (json: JsonRecord = {}): TiledSpriteData {
     return new TiledSpriteData({
       assetId: json.assetId,

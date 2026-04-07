@@ -18,6 +18,12 @@ export class TweenBehavior extends BaseBehavior {
   private _tweens = new Map<string, gsap.core.Tween>()
   private _runtimeCtx: BehaviorRuntimeContext | null = null
 
+  /**
+   * Applies default tween options from JSON.
+   *
+   * @param {Record<string, unknown>} json Raw behavior config.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: Record<string, unknown>): void {
     if (json.defaultDuration != null) this.defaultDuration = Number(json.defaultDuration)
     if (json.defaultEase != null) this.defaultEase = String(json.defaultEase)
@@ -26,14 +32,41 @@ export class TweenBehavior extends BaseBehavior {
     if (json.stopOnDisable != null) this.stopOnDisable = !!json.stopOnDisable
   }
 
+  /**
+   * Enables/disables tween behavior and optionally stops active tweens.
+   *
+   * @param {boolean} value Desired enabled state.
+   * @returns {void} Nothing.
+   */
   override setEnabled (value: boolean): void {
     super.setEnabled(value)
     if (!value && this.stopOnDisable) this.stopAllTweens()
   }
 
+  /**
+   * Stops a tagged tween if present.
+   *
+   * @param {string} tag Tween tag.
+   * @returns {void} Nothing.
+   */
   stopTween (tag: string): void { const t = this._tweens.get(String(tag)); if (t) { t.kill(); this._tweens.delete(String(tag)) } }
+  /**
+   * Stops and clears all active tweens.
+   *
+   * @returns {void} Nothing.
+   */
   stopAllTweens (): void { for (const t of this._tweens.values()) t.kill(); this._tweens.clear() }
 
+  /**
+   * Starts a tween for one supported property.
+   *
+   * @param {string} property Property name (`x`, `y`, `alpha`, `rotation`, etc).
+   * @param {number} endValue Target value.
+   * @param {number | undefined} duration Optional duration override.
+   * @param {string | undefined} ease Optional ease override.
+   * @param {string} tag Optional tween tag (default `default`).
+   * @returns {void} Nothing.
+   */
   startTweenOne (property: string, endValue: number, duration?: number, ease?: string, tag = 'default'): void {
     const ctx = this._runtimeCtx
     if (!ctx) return
@@ -65,5 +98,11 @@ export class TweenBehavior extends BaseBehavior {
     if (tw) this._tweens.set(tg, tw)
   }
 
+  /**
+   * Caches latest runtime context for external tween triggers.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void { this._runtimeCtx = ctx }
 }

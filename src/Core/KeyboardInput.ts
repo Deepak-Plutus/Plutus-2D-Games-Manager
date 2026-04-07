@@ -1,5 +1,8 @@
 import type { InputEventHub } from './InputEventHub.js'
 
+/**
+ * Keyboard state tracker with optional event hub forwarding.
+ */
 export class KeyboardInput {
   private _down: Set<string>
   private _hub: InputEventHub | null
@@ -23,21 +26,43 @@ export class KeyboardInput {
     }
   }
 
+  /**
+   * @param {InputEventHub | null} hub Optional shared input event hub.
+   * @returns {void} Nothing.
+   */
   setInputEventHub (hub: InputEventHub | null): void {
     this._hub = hub
   }
 
+  /**
+   * Attaches keyboard listeners.
+   *
+   * @param {Window} target Window target.
+   * @returns {void} Nothing.
+   */
   attach (target: Window = window): void {
     target.addEventListener('keydown', this._boundDown)
     target.addEventListener('keyup', this._boundUp)
   }
 
+  /**
+   * Detaches keyboard listeners and clears pressed state.
+   *
+   * @param {Window} target Window target.
+   * @returns {void} Nothing.
+   */
   detach (target: Window = window): void {
     target.removeEventListener('keydown', this._boundDown)
     target.removeEventListener('keyup', this._boundUp)
     this._down.clear()
   }
 
+  /**
+   * Checks whether a keyboard code is currently pressed.
+   *
+   * @param {string} code KeyboardEvent.code value.
+   * @returns {boolean} True when the key is pressed.
+   */
   isDown (code: string): boolean {
     return this._down.has(code)
   }

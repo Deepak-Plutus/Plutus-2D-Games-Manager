@@ -1,3 +1,8 @@
+/**
+ * Default settings for `MoveToBehavior`.
+ *
+ * @type {const}
+ */
 export const moveToBehaviorDefaults = {
   targetX: 0,
   targetY: 0,

@@ -1,4 +1,3 @@
-// @ts-nocheck
 import gsap from 'gsap';
 import { Container, Graphics, Rectangle, Text } from 'pixi.js';
 import { BaseSystem } from '../Systems/BaseSystem.js';
@@ -9,13 +8,27 @@ import {
   COMPONENT_INSTANCE_VARIABLES,
   COMPONENT_TRANSFORM,
 } from '../Components/index.js';
+import type { World } from '../ECS/World.js';
+import type { AssetRegistry } from '../Core/AssetRegistry.js';
+import type { EntityBuilder } from '../Entities/EntityBuilder.js';
+import type { InputCoordinator } from '../Core/InputCoordinator.js';
+import type { InputEventHub } from '../Core/InputEventHub.js';
+
+type MoveDir = 'up' | 'down' | 'left' | 'right';
+
+interface PointerEventLike {
+  detail?: {
+    x?: number;
+    y?: number;
+  };
+}
 
 /**
  * Spectral palette (ColorBrewer-style): 2 → 2048, left-to-right in the ramp.
- * @param {number} value
- * @returns {{ bg: number, stroke: number }}
+ * @param {number} value Tile value.
+ * @returns {{ bg: number, stroke: number }} Fill and stroke colors.
  */
-function vibrantTileColors(value) {
+function vibrantTileColors(value: number): { bg: number; stroke: number } {
   const tiers = [2048, 1024, 512, 256, 128, 64, 32, 16, 8, 4, 2];
   let tier = 2;
   for (const t of tiers) {
@@ -24,8 +37,7 @@ function vibrantTileColors(value) {
       break;
     }
   }
-  /** @type {Record<number, { bg: number, stroke: number }>} */
-  const map = {
+  const map: Record<number, { bg: number; stroke: number }> = {
     2: { bg: 0xff6b6b, stroke: 0xd94848 },
     4: { bg: 0xff8e3c, stroke: 0xcc6b2b },
     8: { bg: 0xffbe0b, stroke: 0xcc9809 },
@@ -38,19 +50,19 @@ function vibrantTileColors(value) {
     1024: { bg: 0x9d4edd, stroke: 0x7539a6 },
     2048: { bg: 0xff2e93, stroke: 0xc21f6f },
   };
-  return map[tier] ?? map[2048];
+  return map[tier] ?? { bg: 0xff2e93, stroke: 0xc21f6f };
 }
 
 /**
  * Pick readable number color from tile background luminance.
- * @param {number} bgColor 0xRRGGBB
- * @returns {string}
+ * @param {number} bgColor Background color as 0xRRGGBB.
+ * @returns {string} CSS text color.
  */
-function tileTextColor(bgColor) {
+function tileTextColor(bgColor: number): string {
   const r = (bgColor >> 16) & 0xff;
   const g = (bgColor >> 8) & 0xff;
   const b = bgColor & 0xff;
-  const toLinear = (v) => {
+  const toLinear = (v: number): number => {
     const s = v / 255;
     return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
   };
@@ -68,11 +80,13 @@ const GRID_PURPLE_BORDER_DEEP = 0xa78bfa;
 
 /**
  * Tray behind the 4×4 grid (centered at 0,0): light purple fill, stepped darker purple rims.
- * @param {number} innerW
- * @param {number} innerH
- * @param {number} cornerR
+ * @param {Graphics} g Graphics target.
+ * @param {number} innerW Inner tray width.
+ * @param {number} innerH Inner tray height.
+ * @param {number} cornerR Corner radius.
+ * @returns {void} Nothing.
  */
-function drawMetallicGridBacking(g, innerW, innerH, cornerR) {
+function drawMetallicGridBacking(g: Graphics, innerW: number, innerH: number, cornerR: number): void {
   const ring = 14;
   const ox = -innerW / 2;
   const oy = -innerH / 2;
@@ -104,9 +118,10 @@ function drawMetallicGridBacking(g, innerW, innerH, cornerR) {
 }
 
 /**
- * @param {number} value
+ * @param {number} value Tile value.
+ * @returns {number} Font size in pixels.
  */
-function tileFontSize(value) {
+function tileFontSize(value: number): number {
   const n = String(value).length;
   if (n >= 4) return 18;
   if (n === 3) return 22;
@@ -114,13 +129,13 @@ function tileFontSize(value) {
 }
 
 /**
- * @param {number[]} rowV
- * @returns {{ outV: number[], mergeScore: number }}
+ * @param {number[]} rowV Row values.
+ * @returns {{ outV: number[], mergeScore: number }} Slid row and merge score.
  */
-function slideRowLeftValues(rowV) {
-  const items = [];
+function slideRowLeftValues(rowV: number[]): { outV: number[]; mergeScore: number } {
+  const items: number[] = [];
   for (let c = 0; c < 4; c++) {
-    if (rowV[c] !== 0) items.push(rowV[c]);
+    if (rowV[c] !== 0) items.push(rowV[c]!);
   }
   const outV = [0, 0, 0, 0];
   let mergeScore = 0;
@@ -128,13 +143,13 @@ function slideRowLeftValues(rowV) {
   let i = 0;
   while (i < items.length) {
     if (i < items.length - 1 && items[i] === items[i + 1]) {
-      const merged = items[i] * 2;
+      const merged = items[i]! * 2;
       outV[w] = merged;
       mergeScore += merged;
       w += 1;
       i += 2;
     } else {
-      outV[w] = items[i];
+      outV[w] = items[i]!;
       w += 1;
       i += 1;
     }
@@ -146,13 +161,14 @@ const UI_FONT = { fontFamily: 'Segoe UI, system-ui, sans-serif' };
 
 /**
  * Layered HUD / modal panel: drop shadow + face + inner rim + soft top sheen.
- * @param {Container} parent
- * @param {number} panelW
- * @param {number} panelH
- * @param {number} cornerR
- * @param {number} z
+ * @param {Container} parent Parent container.
+ * @param {number} panelW Panel width.
+ * @param {number} panelH Panel height.
+ * @param {number} cornerR Corner radius.
+ * @param {number} z Base z-index.
+ * @returns {void} Nothing.
  */
-function addGamePanelLayers(parent, panelW, panelH, cornerR, z) {
+function addGamePanelLayers(parent: Container, panelW: number, panelH: number, cornerR: number, z: number): void {
   const sh = new Graphics();
   sh.roundRect(6, 9, panelW - 12, panelH - 10, Math.max(4, cornerR - 2));
   sh.fill({ color: 0x475569, alpha: 0.14 });
@@ -194,14 +210,20 @@ function addGamePanelLayers(parent, panelW, panelH, cornerR, z) {
 }
 
 /**
- * @param {string} label
- * @param {number} w
- * @param {number} h
- * @param {() => void} onTap
- * @param {{ fontSize?: number, bold?: boolean, bg?: number, fg?: number, border?: number, borderHi?: number }} [opts]
- * @returns {Container}
+ * @param {string} label Button label.
+ * @param {number} w Button width.
+ * @param {number} h Button height.
+ * @param {() => void} onTap Tap callback.
+ * @param {{ fontSize?: number, bold?: boolean, bg?: number, fg?: number, border?: number, borderHi?: number }} [opts] Visual options.
+ * @returns {Container} Button container.
  */
-function makePixiButton(label, w, h, onTap, opts = {}) {
+function makePixiButton(
+  label: string,
+  w: number,
+  h: number,
+  onTap: () => void,
+  opts: { fontSize?: number; bold?: boolean; bg?: number; fg?: number; border?: number; borderHi?: number } = {}
+): Container {
   const bg = opts.bg ?? 0x6d28d9;
   const fg = opts.fg ?? 0xffffff;
   const border = opts.border ?? 0x4c1d95;
@@ -270,6 +292,7 @@ function makePixiButton(label, w, h, onTap, opts = {}) {
  */
 export class Game2048Game extends BaseSystem {
   static inputRequirements = { keyboard: true, pointer: true, wheel: false, gamepad: false };
+  [key: string]: any;
 
   constructor() {
     super();
@@ -346,10 +369,11 @@ export class Game2048Game extends BaseSystem {
    * Recompute responsive 2048 layout based on viewport:
    * top 5% gap, panel 30%, panel→grid gap 10%, grid 50%, bottom 5% gap.
    * Keeps integer sizes/positions to reduce blur.
-   * @param {number} viewW
-   * @param {number} viewH
+   * @param {number} viewW View width.
+   * @param {number} viewH View height.
+   * @returns {void} Nothing.
    */
-  _reflowResponsiveLayout(viewW, viewH) {
+  _reflowResponsiveLayout(viewW: number, viewH: number) {
     const vw = Math.max(320, Math.floor(viewW));
     const vh = Math.max(480, Math.floor(viewH));
     const topGap = Math.floor(vh * 0.05);
@@ -372,12 +396,15 @@ export class Game2048Game extends BaseSystem {
   }
 
   /**
-   * @param {Record<string, unknown>} options merged `systems.game2048` + optional `game2048` root
+   * Applies 2048 config overrides.
+   *
+   * @param {Record<string, unknown>} options Merged `systems.game2048` and optional `game2048` root config.
+   * @returns {void} Nothing.
    */
-  configure(options = {}) {
+  configure(options: Record<string, unknown> = {}) {
     if (options.cellSize != null) this.cellSize = Number(options.cellSize) || 72;
     if (options.gap != null) this.gap = Number(options.gap) || 8;
-    const ox = /** @type {Record<string, unknown>} */ (options.boardOrigin ?? {});
+    const ox = (options.boardOrigin ?? {}) as { x?: unknown; y?: unknown };
     if (ox.x != null) this.boardCenterX = Number(ox.x);
     if (ox.y != null) this.boardCenterY = Number(ox.y);
     if (options.slideDuration != null) this.slideDuration = Number(options.slideDuration) || 0.14;
@@ -394,12 +421,15 @@ export class Game2048Game extends BaseSystem {
   }
 
   /**
-   * @param {number} w
-   * @param {number} h
-   * @param {import('../Core/InputCoordinator.js').InputCoordinator} inputCoordinator
-   * @param {import('../Core/InputEventHub.js').InputEventHub} inputHub
+   * Sets runtime dependencies and viewport.
+   *
+   * @param {number} w View width.
+   * @param {number} h View height.
+   * @param {import('../Core/InputCoordinator.js').InputCoordinator} inputCoordinator Input coordinator.
+   * @param {import('../Core/InputEventHub.js').InputEventHub} inputHub Input event hub.
+   * @returns {void} Nothing.
    */
-  setRuntime(w, h, inputCoordinator, inputHub) {
+  setRuntime(w: number, h: number, inputCoordinator: InputCoordinator, inputHub: InputEventHub) {
     this._layoutW = w;
     this._layoutH = h;
     this._inputCoordinator = inputCoordinator;
@@ -414,7 +444,7 @@ export class Game2048Game extends BaseSystem {
 
   /**
    * Top edge of the 4×4 board (matches {@link cellCenter} / entity layout).
-   * @returns {number}
+   * @returns {number} Grid top y coordinate.
    */
   _gridTopY() {
     const step = this._step();
@@ -422,11 +452,14 @@ export class Game2048Game extends BaseSystem {
   }
 
   /**
-   * @param {import('pixi.js').Container | null} uiRoot
-   * @param {number} viewW
-   * @param {number} viewH
+   * Builds and mounts 2048 HUD/UI on the screen layer.
+   *
+   * @param {import('pixi.js').Container | null} uiRoot Screen-space UI root.
+   * @param {number} viewW View width.
+   * @param {number} viewH View height.
+   * @returns {void} Nothing.
    */
-  setScreenUi(uiRoot, viewW, viewH) {
+  setScreenUi(uiRoot: Container | null, viewW: number, viewH: number) {
     this._uiRoot = uiRoot;
     if (!uiRoot) return;
     uiRoot.sortableChildren = true;
@@ -625,10 +658,13 @@ export class Game2048Game extends BaseSystem {
   }
 
   /**
-   * @param {number} viewW
-   * @param {number} viewH
+   * Builds pause modal overlay.
+   *
+   * @param {number} viewW View width.
+   * @param {number} viewH View height.
+   * @returns {void} Nothing.
    */
-  _buildPauseOverlay(viewW, viewH) {
+  _buildPauseOverlay(viewW: number, viewH: number) {
     const ui = this._uiRoot;
     if (!ui) return;
 
@@ -765,16 +801,16 @@ export class Game2048Game extends BaseSystem {
     this._dragUnsubs = [];
     const hub = this._inputHub;
     if (!hub) return;
-    const down = (ev) => {
-      const d = /** @type {CustomEvent} */ (ev).detail;
+    const down = (ev: PointerEventLike) => {
+      const d = ev.detail ?? {};
       this._dragStart = { x: Number(d.x), y: Number(d.y) };
     };
-    const up = (ev) => {
+    const up = (ev: PointerEventLike) => {
       if (!this._dragStart || !this.enabled || this._paused || this._animating || this._playState !== 'playing') {
         this._dragStart = null;
         return;
       }
-      const d = /** @type {CustomEvent} */ (ev).detail;
+      const d = ev.detail ?? {};
       const x = Number(d.x);
       const y = Number(d.y);
       const dx = x - this._dragStart.x;
@@ -793,13 +829,20 @@ export class Game2048Game extends BaseSystem {
 
   /**
    * Call after assets + entities from config are loaded.
-   * @param {import('../ECS/World.js').World} world
-   * @param {import('../Core/AssetRegistry.js').AssetRegistry} registry
-   * @param {import('pixi.js').Container} stage
-   * @param {import('../Entities/EntityBuilder.js').EntityBuilder} entityBuilder
-   * @param {Record<string, unknown>} fullConfig
+   * @param {import('../ECS/World.js').World} world ECS world.
+   * @param {import('../Core/AssetRegistry.js').AssetRegistry} registry Asset registry.
+   * @param {import('pixi.js').Container} stage World stage container.
+   * @param {import('../Entities/EntityBuilder.js').EntityBuilder} entityBuilder Entity spawner.
+   * @param {Record<string, unknown>} fullConfig Full game config.
+   * @returns {void} Nothing.
    */
-  bootstrap(world, registry, stage, entityBuilder, fullConfig) {
+  bootstrap(
+    world: World,
+    registry: AssetRegistry,
+    stage: Container,
+    entityBuilder: EntityBuilder,
+    fullConfig: Record<string, unknown>
+  ) {
     if (!this.enabled) return;
     this._world = world;
     this._registry = registry;
@@ -912,7 +955,7 @@ export class Game2048Game extends BaseSystem {
    * @param {number} col 0..3
    * @param {number} row 0..3
    */
-  cellCenter(col, row) {
+  cellCenter(col: number, row: number): { x: number; y: number } {
     const s = this._step();
     const ox = this.boardCenterX;
     const oy = this.boardCenterY;
@@ -938,7 +981,7 @@ export class Game2048Game extends BaseSystem {
     }
   }
 
-  _queueMove(dir) {
+  _queueMove(dir: 'up' | 'down' | 'left' | 'right') {
     if (this._paused || this._animating || this._playState !== 'playing') return;
     this._moveScheduled = true;
     this._pendingDir = /** @type {'up'|'down'|'left'|'right'} */ (dir);
@@ -946,7 +989,7 @@ export class Game2048Game extends BaseSystem {
 
   _spawnTwoTwos() {
     const positions = this._twoRandomDistinctCells();
-    for (const { row, col } of positions) {
+    for (const { row, col } of positions as Array<{ row: number; col: number }>) {
       this._spawnTileAt(row, col, 2);
     }
   }
@@ -961,13 +1004,13 @@ export class Game2048Game extends BaseSystem {
     const out = [];
     for (let k = 0; k < 2 && opts.length; k++) {
       const i = Math.floor(Math.random() * opts.length);
-      out.push(opts[i]);
+      out.push(opts[i]!);
       opts.splice(i, 1);
     }
     return out;
   }
 
-  _spawnTileAt(row, col, value) {
+  _spawnTileAt(row: number, col: number, value: number) {
     const world = this._world;
     const eb = this._entityBuilder;
     const reg = this._registry;
@@ -993,10 +1036,13 @@ export class Game2048Game extends BaseSystem {
   }
 
   /**
-   * @param {number} entityId
-   * @param {number} value
+   * Attaches/upserts visual label for a tile entity.
+   *
+   * @param {number} entityId Tile entity id.
+   * @param {number} value Tile value.
+   * @returns {void} Nothing.
    */
-  _attachLabel(entityId, value) {
+  _attachLabel(entityId: number, value: number) {
     const world = this._world;
     if (!world) return;
     const disp = world.getComponent(entityId, COMPONENT_DISPLAY);
@@ -1065,9 +1111,12 @@ export class Game2048Game extends BaseSystem {
   }
 
   /**
-   * @param {number} entityId
+   * Removes tile label visuals for an entity.
+   *
+   * @param {number} entityId Tile entity id.
+   * @returns {void} Nothing.
    */
-  _removeLabel(entityId) {
+  _removeLabel(entityId: number) {
     const entry = this._labels.get(entityId);
     if (!entry) return;
     const view = entry.root.parent;
@@ -1108,33 +1157,36 @@ export class Game2048Game extends BaseSystem {
   }
 
   /**
-   * @param {number[]} rowV
-   * @param {(number | null)[]} rowE
+   * Slides one row left while preserving entity ids and merge bookkeeping.
+   *
+   * @param {number[]} rowV Row values.
+   * @param {(number | null)[]} rowE Row entity ids.
+   * @returns {{ outV: number[], outE: (number | null)[], kill: number[], mergeScore: number }} Slide result.
    */
-  _slideRowLeft(rowV, rowE) {
-    const items = [];
+  _slideRowLeft(rowV: number[], rowE: Array<number | null>) {
+    const items: Array<{ v: number; e: number | null }> = [];
     for (let c = 0; c < 4; c++) {
-      if (rowV[c] !== 0) items.push({ v: rowV[c], e: rowE[c] });
+      if (rowV[c] !== 0) items.push({ v: rowV[c]!, e: rowE[c] ?? null });
     }
     const outV = [0, 0, 0, 0];
-    const outE = [null, null, null, null];
+    const outE: Array<number | null> = [null, null, null, null];
     /** @type {number[]} */
     const kill = [];
     let mergeScore = 0;
     let w = 0;
     let i = 0;
     while (i < items.length) {
-      if (i < items.length - 1 && items[i].v === items[i + 1].v) {
-        const merged = items[i].v * 2;
+      if (i < items.length - 1 && items[i]!.v === items[i + 1]!.v) {
+        const merged = items[i]!.v * 2;
         outV[w] = merged;
         mergeScore += merged;
-        outE[w] = items[i].e;
-        if (items[i + 1].e != null) kill.push(/** @type {number} */ (items[i + 1].e));
+        outE[w] = items[i]!.e;
+        if (items[i + 1]!.e != null) kill.push(/** @type {number} */ (items[i + 1]!.e));
         w += 1;
         i += 2;
       } else {
-        outV[w] = items[i].v;
-        outE[w] = items[i].e;
+        outV[w] = items[i]!.v;
+        outE[w] = items[i]!.e;
         w += 1;
         i += 1;
       }
@@ -1144,40 +1196,40 @@ export class Game2048Game extends BaseSystem {
 
   /**
    * Pure value-grid move (for “any move left?” checks).
-   * @param {number[][]} values
-   * @param {'left'|'right'|'up'|'down'} dir
-   * @returns {{ nv: number[][], mergeScore: number }}
+   * @param {number[][]} values Current value grid.
+   * @param {'left'|'right'|'up'|'down'} dir Move direction.
+   * @returns {{ nv: number[][], mergeScore: number }} Next value grid and merge score.
    */
-  _applyValuesMove(values, dir) {
+  _applyValuesMove(values: number[][], dir: MoveDir) {
     /** @type {number[][]} */
     const nv = Array.from({ length: 4 }, () => [0, 0, 0, 0]);
     let mergeScore = 0;
     if (dir === 'left') {
       for (let r = 0; r < 4; r++) {
-        const { outV, mergeScore: ms } = slideRowLeftValues(values[r]);
+        const { outV, mergeScore: ms } = slideRowLeftValues(values[r]!);
         nv[r] = outV;
         mergeScore += ms;
       }
     } else if (dir === 'right') {
       for (let r = 0; r < 4; r++) {
-        const rv = [...values[r]].reverse();
+        const rv = [...values[r]!].reverse();
         const { outV, mergeScore: ms } = slideRowLeftValues(rv);
         nv[r] = outV.reverse();
         mergeScore += ms;
       }
     } else if (dir === 'up') {
       for (let c = 0; c < 4; c++) {
-        const colV = [values[0][c], values[1][c], values[2][c], values[3][c]];
+        const colV = [values[0]![c]!, values[1]![c]!, values[2]![c]!, values[3]![c]!];
         const { outV, mergeScore: ms } = slideRowLeftValues(colV);
         mergeScore += ms;
-        for (let r = 0; r < 4; r++) nv[r][c] = outV[r];
+        for (let r = 0; r < 4; r++) nv[r]![c] = outV[r]!;
       }
     } else if (dir === 'down') {
       for (let c = 0; c < 4; c++) {
-        const colV = [values[0][c], values[1][c], values[2][c], values[3][c]].reverse();
+        const colV = [values[0]![c]!, values[1]![c]!, values[2]![c]!, values[3]![c]!].reverse();
         const { outV, mergeScore: ms } = slideRowLeftValues(colV);
         const ov = outV.reverse();
-        for (let r = 0; r < 4; r++) nv[r][c] = ov[r];
+        for (let r = 0; r < 4; r++) nv[r]![c] = ov[r]!;
         mergeScore += ms;
       }
     }
@@ -1185,16 +1237,25 @@ export class Game2048Game extends BaseSystem {
   }
 
   /**
-   * @param {number[][]} values
+   * Checks whether at least one valid move exists from a value grid.
+   *
+   * @param {number[][]} values Value grid snapshot.
+   * @returns {boolean} True when any move changes the grid.
    */
-  _canMoveFrom(values) {
-    for (const dir of /** @type {const} */ (['left', 'right', 'up', 'down'])) {
+  _canMoveFrom(values: number[][]) {
+    const dirs: Array<'left' | 'right' | 'up' | 'down'> = ['left', 'right', 'up', 'down'];
+    for (const dir of dirs) {
       const { nv } = this._applyValuesMove(values, dir);
       if (this._gridSignatureOf(nv) !== this._gridSignatureOf(values)) return true;
     }
     return false;
   }
 
+  /**
+   * Checks if any tile has reached the configured win value.
+   *
+   * @returns {boolean} True when win threshold is reached.
+   */
   _hasReachedWin() {
     for (let r = 0; r < 4; r++) {
       for (let c = 0; c < 4; c++) {
@@ -1204,10 +1265,21 @@ export class Game2048Game extends BaseSystem {
     return false;
   }
 
-  _gridSignatureOf(values) {
+  /**
+   * Produces a compact string signature for a value grid.
+   *
+   * @param {number[][]} values Value grid.
+   * @returns {string} Deterministic grid signature.
+   */
+  _gridSignatureOf(values: number[][]) {
     return values.map((row) => row.join(',')).join('|');
   }
 
+  /**
+   * Removes and destroys the current end overlay if present.
+   *
+   * @returns {void} Nothing.
+   */
   _hideEndOverlay() {
     const o = this._endOverlay;
     if (!o) return;
@@ -1217,9 +1289,12 @@ export class Game2048Game extends BaseSystem {
   }
 
   /**
-   * @param {'win' | 'lose'} kind
+   * Shows win/lose overlay on the UI layer.
+   *
+   * @param {'win' | 'lose'} kind Overlay kind.
+   * @returns {void} Nothing.
    */
-  _showEndOverlay(kind) {
+  _showEndOverlay(kind: 'win' | 'lose') {
     const ui = this._uiRoot;
     if (!ui) return;
     this._hideEndOverlay();
@@ -1360,17 +1435,19 @@ export class Game2048Game extends BaseSystem {
   }
 
   /**
-   * @param {'left'|'right'|'up'|'down'} dir
+   * Applies one move to values/entities in the specified direction.
+   *
+   * @param {'left'|'right'|'up'|'down'} dir Move direction.
+   * @returns {void} Nothing.
    */
-  _applyMove(dir) {
+  _applyMove(dir: MoveDir) {
     const world = this._world;
     if (!world || this._playState !== 'playing' || this._paused) return;
 
     const before = this._gridSignature();
     /** @type {number[][]} */
     const nv = Array.from({ length: 4 }, () => [0, 0, 0, 0]);
-    /** @type {(number | null)[][]} */
-    const ne = Array.from({ length: 4 }, () => [null, null, null, null]);
+    const ne: Array<Array<number | null>> = Array.from({ length: 4 }, () => [null, null, null, null]);
     /** @type {number[]} */
     const toKill = [];
     let moveMergeScore = 0;
@@ -1400,8 +1477,8 @@ export class Game2048Game extends BaseSystem {
         const { outV, outE, kill, mergeScore } = this._slideRowLeft(colV, colE);
         moveMergeScore += mergeScore;
         for (let r = 0; r < 4; r++) {
-          nv[r][c] = outV[r];
-          ne[r][c] = outE[r];
+          nv[r]![c] = outV[r]!;
+          ne[r]![c] = outE[r]!;
         }
         toKill.push(...kill);
       }
@@ -1414,8 +1491,8 @@ export class Game2048Game extends BaseSystem {
         const ov = outV.reverse();
         const oe = outE.reverse();
         for (let r = 0; r < 4; r++) {
-          nv[r][c] = ov[r];
-          ne[r][c] = oe[r];
+          nv[r]![c] = ov[r]!;
+          ne[r]![c] = oe[r]!;
         }
         toKill.push(...kill);
       }
@@ -1520,14 +1597,17 @@ export class Game2048Game extends BaseSystem {
     if (!empty.length) return;
     const pick = empty[Math.floor(Math.random() * empty.length)];
     const v = Math.random() < 0.9 ? 2 : 4;
-    this._spawnTileAt(pick.r, pick.c, v);
+    this._spawnTileAt(pick!.r, pick!.c, v);
   }
 
   /**
-   * @param {number} _dt
-   * @param {import('../ECS/World.js').World} world
+   * Processes input and executes queued moves each frame.
+   *
+   * @param {number} _dt Delta time in seconds.
+   * @param {import('../ECS/World.js').World} world ECS world.
+   * @returns {void} Nothing.
    */
-  update(_dt, world) {
+  update(_dt: number, world: World) {
     if (!this.enabled || !this._inputCoordinator) return;
 
     const kb = this._inputCoordinator.keyboard;
@@ -1541,7 +1621,7 @@ export class Game2048Game extends BaseSystem {
 
     if (this._animating || this._playState !== 'playing') return;
 
-    const dirs = ['up', 'down', 'left', 'right'];
+    const dirs: MoveDir[] = ['up', 'down', 'left', 'right'];
     for (const d of dirs) {
       const down = this._inputCoordinator.isActionDown(d);
       if (down && !this._prevKey[d]) {

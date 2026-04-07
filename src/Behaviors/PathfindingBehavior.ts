@@ -5,6 +5,12 @@ import { pathfindingBehaviorDefaults } from './Config/pathfindingBehaviorConfig.
 
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Grid-based A* pathfinding movement behavior.
+ *
+ * Converts world positions to occupancy cells, computes a path, then drives
+ * the entity through waypoint centers at configured movement speed.
+ */
 export class PathfindingBehavior extends BaseBehavior {
   static type = 'pathfinding'
   static priority = 17
@@ -25,6 +31,12 @@ export class PathfindingBehavior extends BaseBehavior {
   private _goalY = 0
   private _pendingFind = false
 
+  /**
+   * Applies pathfinding and movement options from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.cellSize != null) this.cellSize = Number(json.cellSize)
     if (json.maxCellsWidth != null) this.maxCellsWidth = Number(json.maxCellsWidth)
@@ -36,12 +48,25 @@ export class PathfindingBehavior extends BaseBehavior {
     if (json.obstaclesSolids != null) this.obstaclesSolids = !!json.obstaclesSolids
   }
 
+  /**
+   * Requests a path recomputation to the given goal.
+   *
+   * @param {number} x Goal x.
+   * @param {number} y Goal y.
+   * @returns {void} Nothing.
+   */
   findPathTo (x: number, y: number): void {
     this._goalX = Number(x)
     this._goalY = Number(y)
     this._pendingFind = true
   }
 
+  /**
+   * Rebuilds path when requested and advances toward current waypoint.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled()) return
     const { transform, dt, colliders, entityId, layoutWidth, layoutHeight } = ctx
@@ -70,6 +95,17 @@ export class PathfindingBehavior extends BaseBehavior {
     if (this.rotateToWaypoint) transform.rotation = Math.atan2(dy, dx)
   }
 
+  /**
+   * Builds grid/A* path and converts it to world-space waypoints.
+   *
+   * @param {number} layoutX Current x.
+   * @param {number} layoutY Current y.
+   * @param {ColliderAabb[]} colliders Collider list.
+   * @param {number} entityId Current entity id.
+   * @param {number} layoutWidth Layout width.
+   * @param {number} layoutHeight Layout height.
+   * @returns {boolean} `true` when a valid path was found.
+   */
   private findPath (layoutX: number, layoutY: number, colliders: ColliderAabb[], entityId: number, layoutWidth: number, layoutHeight: number): boolean {
     const cell = Math.max(4, this.cellSize)
     const cols = Math.min(this.maxCellsWidth, Math.ceil(layoutWidth / cell))
@@ -88,6 +124,17 @@ export class PathfindingBehavior extends BaseBehavior {
   }
 }
 
+/**
+ * Builds occupancy grid from solid colliders.
+ *
+   * @param {number} cols Grid columns.
+   * @param {number} rows Grid rows.
+   * @param {number} cellSize Cell size.
+   * @param {ColliderAabb[]} colliders Collider list.
+   * @param {number} selfId Entity id to ignore.
+   * @param {boolean} useSolids Whether to mark solids.
+ * @returns {Uint8Array} 0/1 occupancy map.
+ */
 function buildSolidGrid (cols: number, rows: number, cellSize: number, colliders: ColliderAabb[], selfId: number, useSolids: boolean): Uint8Array {
   const grid = new Uint8Array(cols * rows)
   if (!useSolids) return grid
@@ -104,6 +151,19 @@ function buildSolidGrid (cols: number, rows: number, cellSize: number, colliders
   return grid
 }
 
+/**
+ * Runs A* search on occupancy grid.
+ *
+   * @param {Uint8Array} grid Occupancy grid.
+   * @param {number} cols Grid columns.
+   * @param {number} rows Grid rows.
+   * @param {number} sx Start x.
+   * @param {number} sy Start y.
+   * @param {number} gx Goal x.
+   * @param {number} gy Goal y.
+   * @param {boolean} allowDiag Whether diagonals are allowed.
+ * @returns {[number, number][]} Cell-space path.
+ */
 function astar (grid: Uint8Array, cols: number, rows: number, sx: number, sy: number, gx: number, gy: number, allowDiag: boolean): [number, number][] {
   if (sx < 0 || sy < 0 || gx < 0 || gy < 0 || sx >= cols || sy >= rows || gx >= cols || gy >= rows) return []
   if (grid[sy * cols + sx] || grid[gy * cols + gx]) return []
@@ -153,6 +213,14 @@ function astar (grid: Uint8Array, cols: number, rows: number, sx: number, sy: nu
   return []
 }
 
+/**
+ * Reconstructs A* predecessor chain into forward path.
+ *
+   * @param {Int32Array} came Predecessor array.
+   * @param {number} cols Grid columns.
+   * @param {number} current Current cell index.
+ * @returns {[number, number][]} Cell coordinates from start to goal.
+ */
 function reconstruct (came: Int32Array, cols: number, current: number): [number, number][] {
   const path: [number, number][] = []
   let c = current

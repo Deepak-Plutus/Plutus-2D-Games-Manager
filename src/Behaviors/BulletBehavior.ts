@@ -5,6 +5,20 @@ import { bulletBehaviorDefaults } from './Config/bulletBehaviorConfig.js'
 
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Projectile movement behavior with optional bounce and collision-hit events.
+ *
+ * Supports linear velocity from `speed + angle`, optional acceleration/gravity,
+ * collision hit events, and two common collision outcomes: bounce or destroy.
+ *
+ * @example
+ * {
+ *   "type": "bullet",
+ *   "speed": 520,
+ *   "angle": -90,
+ *   "destroyOnSolid": true
+ * }
+ */
 export class BulletBehavior extends BaseBehavior {
   static type = 'bullet'
   static priority = 12
@@ -23,10 +37,21 @@ export class BulletBehavior extends BaseBehavior {
   private _distanceTravelled = 0
 
   constructor (json: JsonRecord = {}) {
-    super(json)
+    // Important: class fields initialize AFTER super() returns.
+    // If we pass `json` to super, subclass field initializers can overwrite
+    // applied values (e.g. angle/speed) back to defaults.
+    super({})
+    this.applyJsonProperties(json)
+    this.setEnabled(json.enabled !== false)
     this._syncFromAngleSpeed()
   }
 
+  /**
+   * Applies projectile motion and collision settings from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config from entity/object type definition.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.speed != null) this.speed = Number(json.speed)
     if (json.angle != null) this.angle = Number(json.angle)
@@ -39,15 +64,32 @@ export class BulletBehavior extends BaseBehavior {
     this._syncFromAngleSpeed()
   }
 
+  /**
+   * Enables/disables the behavior and optionally resets travelled distance.
+   *
+   * @param {boolean} value Desired enabled state.
+   * @returns {void} Nothing.
+   */
   override setEnabled (value: boolean): void {
     const next = !!value
     if (next && !this.enabled && this.resetDistanceOnEnable) this._distanceTravelled = 0
     super.setEnabled(next)
   }
 
+  /**
+   * Total world-space distance travelled by this projectile since spawn/reset.
+   *
+   * @returns {number} Accumulated travelled distance in layout units.
+   */
   get distanceTravelled (): number {
     return this._distanceTravelled
   }
+
+  /**
+   * Clears accumulated projectile travel distance.
+   *
+   * @returns {void} Nothing.
+   */
   resetDistanceTravelled (): void {
     this._distanceTravelled = 0
   }
@@ -58,6 +100,14 @@ export class BulletBehavior extends BaseBehavior {
     this._vy = Math.sin(rad) * this.speed
   }
 
+  /**
+   * Integrates projectile movement and processes collision outcomes.
+   *
+   * Emits `bullet:hit` on the first sampled solid collision in this frame.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context for this frame.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled()) return
     const { transform, dt, colliders, events, entityId, world } = ctx
@@ -99,6 +149,18 @@ export class BulletBehavior extends BaseBehavior {
   }
 }
 
+/**
+ * Samples along a movement segment and returns the earliest solid hit.
+ *
+ * @param {number} x0 Segment start x.
+ * @param {number} y0 Segment start y.
+ * @param {number} x1 Segment end x.
+ * @param {number} y1 Segment end y.
+ * @param {ColliderAabb[]} colliders Candidate world colliders.
+ * @param {number} selfId Entity id to ignore.
+ * @returns {{ t: number; collider: ColliderAabb } | null}
+ * Earliest hit sample or `null` if no hit.
+ */
 function sampleSegment (
   x0: number,
   y0: number,

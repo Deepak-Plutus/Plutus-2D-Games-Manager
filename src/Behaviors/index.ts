@@ -28,7 +28,16 @@ import { TurretBehavior } from './TurretBehavior.js'
 import { TweenBehavior } from './TweenBehavior.js'
 import { WrapBehavior } from './WrapBehavior.js'
 
+/**
+ * Central behavior bootstrapper for registering all built-in behaviors.
+ */
 export class BehaviorBootstrap {
+  /**
+   * Registers every shipped behavior class into the provided registry.
+   *
+   * @param {BehaviorRegistry} registry Behavior registry to populate.
+   * @returns {void} Nothing.
+   */
   static registerAll (registry: BehaviorRegistry): void {
     registry.registerClass(SolidBehavior)
     registry.registerClass(JumpThruBehavior)

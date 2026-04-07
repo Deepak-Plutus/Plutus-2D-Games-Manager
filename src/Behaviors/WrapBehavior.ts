@@ -4,6 +4,15 @@ import { wrapBehaviorDefaults } from './Config/wrapBehaviorConfig.js'
 
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Screen/layout wrap behavior for horizontal and vertical axes.
+ *
+ * When enabled, an entity leaving one side of bounds appears on the opposite
+ * side while preserving axis-independent control.
+ *
+ * @example
+ * { "type": "wrap", "wrapHorizontal": true, "wrapVertical": false, "margin": 24 }
+ */
 export class WrapBehavior extends BaseBehavior {
   static type = 'wrap'
   static priority = 88
@@ -14,6 +23,12 @@ export class WrapBehavior extends BaseBehavior {
   wrapVertical = true
   margin = 0
 
+  /**
+   * Applies wrap mode, axis flags, and margin from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config object.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.wrapTo != null) this.wrapTo = String(json.wrapTo).toLowerCase()
     if (json.wrapHorizontal != null) this.wrapHorizontal = !!json.wrapHorizontal
@@ -21,19 +36,51 @@ export class WrapBehavior extends BaseBehavior {
     if (json.margin != null) this.margin = Number(json.margin)
   }
 
+  /**
+   * Sets wrap target mode metadata.
+   *
+   * @param {string} mode Wrap mode label.
+   * @returns {void} Nothing.
+   */
   setWrapTo (mode: string): void {
     this.wrapTo = String(mode).toLowerCase()
   }
+  /**
+   * Enables/disables horizontal wrapping.
+   *
+   * @param {boolean} v New state.
+   * @returns {void} Nothing.
+   */
   setWrapHorizontal (v: boolean): void {
     this.wrapHorizontal = !!v
   }
+  /**
+   * Enables/disables vertical wrapping.
+   *
+   * @param {boolean} v New state.
+   * @returns {void} Nothing.
+   */
   setWrapVertical (v: boolean): void {
     this.wrapVertical = !!v
   }
+  /**
+   * Sets extra bounds margin used by wrapping tests.
+   *
+   * @param {number} m Margin in layout units.
+   * @returns {void} Nothing.
+   */
   setMargin (m: number): void {
     this.margin = Number(m)
   }
 
+  /**
+   * Wraps entity position when it exits the configured bounds.
+   *
+   * Emits `wrap:wrapped` after a successful wrap.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled()) return
     const { transform, layoutWidth, layoutHeight, displaySize, events, entityId } = ctx

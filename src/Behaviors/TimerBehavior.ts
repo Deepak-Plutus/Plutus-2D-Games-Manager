@@ -6,6 +6,17 @@ type JsonRecord = Record<string, unknown>
 type JsonTimer = { tag: string; duration: number; repeating: boolean; autoStart: boolean }
 type TimerState = { duration: number; elapsed: number; repeating: boolean; paused: boolean; active: boolean }
 
+/**
+ * Multi-timer behavior that emits timer events per entity.
+ *
+ * Supports multiple named timers with pause/resume and repeating mode.
+ *
+ * @example
+ * {
+ *   "type": "timer",
+ *   "timers": [{ "tag": "spawn", "duration": 1.2, "repeating": true }]
+ * }
+ */
 export class TimerBehavior extends BaseBehavior {
   static type = 'timer'
   static priority = 3
@@ -16,6 +27,12 @@ export class TimerBehavior extends BaseBehavior {
   private _startedJson = false
   private _jsonTimers?: JsonTimer[]
 
+  /**
+   * Applies timer definitions and default tag from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config object.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.defaultTag != null) this.defaultTag = String(json.defaultTag)
     if (Array.isArray(json.timers)) {
@@ -31,6 +48,14 @@ export class TimerBehavior extends BaseBehavior {
     }
   }
 
+  /**
+   * Starts or replaces a timer by tag.
+   *
+   * @param {string} tag Timer identifier.
+   * @param {number} duration Timer duration in seconds.
+   * @param {'once' | 'regular'} type Timer mode: one-shot or repeating.
+   * @returns {void} Nothing.
+   */
   startTimer (tag: string, duration: number, type: 'once' | 'regular' = 'once'): void {
     this._timers.set(String(tag), {
       duration: Math.max(1e-6, Number(duration)),
@@ -41,11 +66,40 @@ export class TimerBehavior extends BaseBehavior {
     })
   }
 
+  /**
+   * Removes a timer by tag.
+   *
+   * @param {string} tag Timer identifier.
+   * @returns {void} Nothing.
+   */
   stopTimer (tag: string): void { this._timers.delete(String(tag)) }
+  /**
+   * Removes all timers.
+   *
+   * @returns {void} Nothing.
+   */
   stopAllTimers (): void { this._timers.clear() }
+  /**
+   * Pauses an active timer.
+   *
+   * @param {string} tag Timer identifier.
+   * @returns {void} Nothing.
+   */
   pauseTimer (tag: string): void { const e = this._timers.get(String(tag)); if (e) e.paused = true }
+  /**
+   * Resumes a paused timer.
+   *
+   * @param {string} tag Timer identifier.
+   * @returns {void} Nothing.
+   */
   resumeTimer (tag: string): void { const e = this._timers.get(String(tag)); if (e) e.paused = false }
 
+  /**
+   * Advances timers and emits `timer:fired` events on expiry.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled()) return
     const { dt, events, entityId } = ctx

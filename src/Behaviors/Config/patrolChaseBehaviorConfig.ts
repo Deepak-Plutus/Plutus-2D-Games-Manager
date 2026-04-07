@@ -1,3 +1,8 @@
+/**
+ * Default settings for `PatrolChaseBehavior`.
+ *
+ * @type {const}
+ */
 export const patrolChaseBehaviorDefaults = {
   targetName: '',
   enableChase: false,

@@ -1,3 +1,8 @@
+/**
+ * Default settings for `BulletBehavior`.
+ *
+ * @type {const}
+ */
 export const bulletBehaviorDefaults = {
   speed: 400,
   angle: 0,

@@ -4,6 +4,11 @@ import type { BehaviorRuntimeContext } from './BehaviorRuntimeContext.js'
 import type { ColliderAabb } from '../Core/CollisionService.js'
 import { patrolChaseBehaviorDefaults } from './Config/patrolChaseBehaviorConfig.js'
 
+/**
+ * Enemy locomotion behavior with patrol and optional target chase.
+ *
+ * Supports `ground` and `fly` patrol modes plus simple LOS-based chasing.
+ */
 export class PatrolChaseBehavior extends BaseBehavior {
   static type = 'patrolChase'
   static priority = 18
@@ -29,6 +34,12 @@ export class PatrolChaseBehavior extends BaseBehavior {
   private _spawnY: number | null = null
   private _vy = 0
 
+  /**
+   * Applies patrol and chase parameters from JSON.
+   *
+   * @param {Record<string, unknown>} json Raw behavior config.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: Record<string, unknown>): void {
     if (json.targetName != null) this.targetName = String(json.targetName)
     if (json.enableChase != null) this.enableChase = !!json.enableChase
@@ -47,6 +58,12 @@ export class PatrolChaseBehavior extends BaseBehavior {
     if (json.maxFallSpeed != null) this.maxFallSpeed = Number(json.maxFallSpeed)
   }
 
+  /**
+   * Updates patrol/chase motion for fly or ground modes.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled() || !ctx.world) return
     const { transform, dt, entityId, time, colliders } = ctx
@@ -142,6 +159,18 @@ export class PatrolChaseBehavior extends BaseBehavior {
   }
 }
 
+/**
+ * Ray samples against solid colliders to test line-of-sight blockage.
+ *
+ * @param {number} x0 Ray start x.
+ * @param {number} y0 Ray start y.
+ * @param {number} x1 Ray end x.
+ * @param {number} y1 Ray end y.
+ * @param {number} step Sample spacing in world units.
+ * @param {ColliderAabb[]} colliders Collider list.
+ * @param {number} selfId Entity id to ignore.
+ * @returns {boolean} `true` when blocked by a solid.
+ */
 function rayBlockedSolids (x0: number, y0: number, x1: number, y1: number, step: number, colliders: ColliderAabb[], selfId: number): boolean {
   const d = Math.hypot(x1 - x0, y1 - y0)
   const n = Math.max(1, Math.ceil(d / Math.max(step, 1)))

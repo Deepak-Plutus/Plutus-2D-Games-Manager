@@ -4,6 +4,15 @@ import { destroyOutsideBehaviorDefaults } from './Config/destroyOutsideBehaviorC
 
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Destroys entities once they leave layout bounds plus configured margins.
+ *
+ * Useful for bullets/particles/enemies that should be removed when outside
+ * active play space.
+ *
+ * @example
+ * { "type": "destroyOutside", "marginLeft": 80, "marginRight": 80 }
+ */
 export class DestroyOutsideLayoutBehavior extends BaseBehavior {
   static type = 'destroyOutside'
   static priority = 110
@@ -14,6 +23,12 @@ export class DestroyOutsideLayoutBehavior extends BaseBehavior {
   marginTop = 0
   marginBottom = 0
 
+  /**
+   * Applies destroy margins from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config object.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.marginLeft != null) this.marginLeft = Number(json.marginLeft)
     if (json.marginRight != null) this.marginRight = Number(json.marginRight)
@@ -21,6 +36,14 @@ export class DestroyOutsideLayoutBehavior extends BaseBehavior {
     if (json.marginBottom != null) this.marginBottom = Number(json.marginBottom)
   }
 
+  /**
+   * Removes entity when its bounds move outside allowed area.
+   *
+   * Emits `destroyOutside:beforeDestroy` just before removal.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled()) return
     const { transform, layoutWidth, layoutHeight, displaySize, entityId, world, events } = ctx

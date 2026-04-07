@@ -1,3 +1,8 @@
+/**
+ * Default settings for `PhysicsBehavior`.
+ *
+ * @type {const}
+ */
 export const physicsBehaviorDefaults = {
   velocityX: 0,
   velocityY: 0,

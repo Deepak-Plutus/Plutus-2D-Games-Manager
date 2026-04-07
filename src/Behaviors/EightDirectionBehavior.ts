@@ -5,6 +5,12 @@ import type { BehaviorRuntimeContext } from './BehaviorRuntimeContext.js'
 
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Top-down 4/8-direction movement controller with accel/decel smoothing.
+ *
+ * @example
+ * { "type": "eightDirection", "maxSpeed": 220, "directions": 8 }
+ */
 export class EightDirectionBehavior extends BaseBehavior {
   static type = 'eightDirection'
   static priority = 10
@@ -30,6 +36,12 @@ export class EightDirectionBehavior extends BaseBehavior {
   private _simDx = 0
   private _simDy = 0
 
+  /**
+   * Applies movement and control settings from JSON.
+   *
+   * @param {JsonRecord} json Raw behavior config.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: JsonRecord): void {
     if (json.maxSpeed != null) this.maxSpeed = Number(json.maxSpeed)
     if (json.acceleration != null) this.acceleration = Number(json.acceleration)
@@ -39,11 +51,23 @@ export class EightDirectionBehavior extends BaseBehavior {
     if (json.allowDiagonal != null) this.allowDiagonal = !!json.allowDiagonal
   }
 
+  /**
+   * Injects one-frame simulated directional input.
+   *
+   * @param {string} control Direction label (`left`, `right`, `up`, `down`, diagonals).
+   * @returns {void} Nothing.
+   */
   simulateControl (control: string): void {
     const d = EIGHT_DIRECTION_SIMULATE_DELTA[String(control).toLowerCase().trim() as keyof typeof EIGHT_DIRECTION_SIMULATE_DELTA]
     if (d) { this._simDx += d.dx; this._simDy += d.dy }
   }
 
+  /**
+   * Advances velocity and transform for 4/8-direction movement.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled()) return
     const { transform, dt, input } = ctx
@@ -79,6 +103,14 @@ export class EightDirectionBehavior extends BaseBehavior {
   }
 }
 
+/**
+ * Moves scalar toward target by bounded step.
+ *
+ * @param {number} current Current value.
+ * @param {number} target Target value.
+ * @param {number} maxStep Maximum delta.
+ * @returns {number} Next scalar value.
+ */
 function moveToward (current: number, target: number, maxStep: number): number {
   const d = target - current
   if (Math.abs(d) <= maxStep) return target

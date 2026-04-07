@@ -1,5 +1,8 @@
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Entity grouping metadata for hierarchy and tag-like grouping.
+ */
 export class GroupMembership {
   groupIds: string[]
   parentEntityId: number | null
@@ -18,6 +21,12 @@ export class GroupMembership {
           : null
   }
 
+  /**
+   * Parses group membership from JSON aliases.
+   *
+   * @param {JsonRecord} json Raw group block.
+   * @returns {GroupMembership}
+   */
   static fromJson (json: JsonRecord = {}): GroupMembership {
     return new GroupMembership({
       groupIds: json.groupIds ?? json.groups,
@@ -25,11 +34,20 @@ export class GroupMembership {
     })
   }
 
+  /**
+   * Checks whether entity belongs to a given group id.
+   *
+   * @param {string} groupId Group id to check.
+   * @returns {boolean} `true` when membership exists.
+   */
   hasGroup (groupId: string): boolean {
     return this.groupIds.includes(String(groupId))
   }
 }
 
+/**
+ * Camera follow/bounds configuration component.
+ */
 export class Camera {
   enabled: boolean
   followEntityId: number | null
@@ -69,6 +87,12 @@ export class Camera {
     this.zoom = Number(opts.zoom) || 1
   }
 
+  /**
+   * Parses camera settings from JSON.
+   *
+   * @param {JsonRecord} json Raw camera block.
+   * @returns {Camera}
+   */
   static fromJson (json: JsonRecord = {}): Camera {
     return new Camera(json)
   }

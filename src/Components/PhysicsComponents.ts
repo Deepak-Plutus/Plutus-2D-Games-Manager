@@ -1,5 +1,8 @@
 type JsonRecord = Record<string, unknown>
 
+/**
+ * Linear velocity component (units per second).
+ */
 export class Velocity {
   x: number
   y: number
@@ -9,11 +12,20 @@ export class Velocity {
     this.y = Number(y) || 0
   }
 
+  /**
+   * Parses velocity from JSON.
+   *
+   * @param {JsonRecord} json Raw velocity block.
+   * @returns {Velocity}
+   */
   static fromJson (json: JsonRecord = {}): Velocity {
     return new Velocity(json.x, json.y)
   }
 }
 
+/**
+ * Linear acceleration component (units per second squared).
+ */
 export class Acceleration {
   x: number
   y: number
@@ -23,11 +35,20 @@ export class Acceleration {
     this.y = Number(y) || 0
   }
 
+  /**
+   * Parses acceleration from JSON.
+   *
+   * @param {JsonRecord} json Raw acceleration block.
+   * @returns {Acceleration}
+   */
   static fromJson (json: JsonRecord = {}): Acceleration {
     return new Acceleration(json.x, json.y)
   }
 }
 
+/**
+ * Scalar mass component.
+ */
 export class Mass {
   value: number
 
@@ -35,11 +56,20 @@ export class Mass {
     this.value = Math.max(1e-6, Number(value) || 1)
   }
 
+  /**
+   * Parses mass from JSON.
+   *
+   * @param {JsonRecord} json Raw mass block.
+   * @returns {Mass}
+   */
   static fromJson (json: JsonRecord = {}): Mass {
     return new Mass(json.value ?? json.mass)
   }
 }
 
+/**
+ * Physics body material/type metadata.
+ */
 export class RigidBody {
   bodyType: string
   friction: number
@@ -58,6 +88,12 @@ export class RigidBody {
     this.fixedRotation = !!opts.fixedRotation
   }
 
+  /**
+   * Parses rigid body settings from JSON.
+   *
+   * @param {JsonRecord} json Raw rigid body block.
+   * @returns {RigidBody}
+   */
   static fromJson (json: JsonRecord = {}): RigidBody {
     return new RigidBody(json)
   }
@@ -71,6 +107,9 @@ export type CollisionShape = {
   offsetY: number
 }
 
+/**
+ * Collider component used for broad collision shape generation.
+ */
 export class Collider {
   kind: string
   width: number
@@ -90,10 +129,21 @@ export class Collider {
     this.layerMask = Number(opts.layerMask) || 0xffffffff
   }
 
+  /**
+   * Parses collider settings from JSON.
+   *
+   * @param {JsonRecord} json Raw collider block.
+   * @returns {Collider}
+   */
   static fromJson (json: JsonRecord = {}): Collider {
     return new Collider(json)
   }
 
+  /**
+   * Converts collider to simplified collision shape payload.
+   *
+   * @returns {CollisionShape}
+   */
   toCollisionShape (): CollisionShape {
     return {
       kind: this.kind,

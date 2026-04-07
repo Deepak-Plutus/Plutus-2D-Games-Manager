@@ -2,6 +2,12 @@ import { BaseBehavior } from './BaseBehavior.js'
 import type { BehaviorRuntimeContext } from './BehaviorRuntimeContext.js'
 import { persistBehaviorDefaults } from './Config/persistBehaviorConfig.js'
 
+/**
+ * Persistence behavior for restoring saved entity state from localStorage.
+ *
+ * @example
+ * { "type": "persist", "storagePrefix": "save_slot_1", "autoLoad": true }
+ */
 export class PersistBehavior extends BaseBehavior {
   static type = 'persist'
   static priority = 5
@@ -12,12 +18,24 @@ export class PersistBehavior extends BaseBehavior {
   autoSave = false
   private _didAutoLoad = false
 
+  /**
+   * Applies persistence settings from JSON.
+   *
+   * @param {Record<string, unknown>} json Raw behavior config.
+   * @returns {void} Nothing.
+   */
   applyJsonProperties (json: Record<string, unknown>): void {
     if (json.storagePrefix != null) this.storagePrefix = String(json.storagePrefix)
     if (json.autoLoad != null) this.autoLoad = !!json.autoLoad
     if (json.autoSave != null) this.autoSave = !!json.autoSave
   }
 
+  /**
+   * Performs one-time auto-load from localStorage when enabled.
+   *
+   * @param {BehaviorRuntimeContext} ctx Runtime behavior context.
+   * @returns {void} Nothing.
+   */
   tick (ctx: BehaviorRuntimeContext): void {
     if (!this.isEnabled()) return
     const { world, entityId, transform, displayView } = ctx
