@@ -1,4 +1,3 @@
-// @ts-nocheck
 import { Container, Graphics, Rectangle, Sprite, Text, Texture } from 'pixi.js'
 import { BaseSystem } from '../Systems/BaseSystem.js'
 import { aabbOverlap, buildColliderList } from '../Core/CollisionService.js'
@@ -9,6 +8,87 @@ import {
   COMPONENT_META,
   COMPONENT_TRANSFORM
 } from '../Components/index.js'
+
+interface TransformLike {
+  x: number
+  y: number
+  rotation: number
+  scaleX: number
+  scaleY: number
+}
+
+interface PointLike {
+  x: number
+  y: number
+}
+
+interface ColliderLike {
+  entityId: number
+  kind: string
+  left: number
+  right: number
+  top: number
+  bottom: number
+}
+
+interface WorldLike {
+  getComponent: (entityId: number, key: string) => any
+  setComponent: (entityId: number, key: string, value: unknown) => void
+  destroyEntity: (entityId: number) => void
+  findEntityIdByMetaName: (metaName: string) => number | null
+  findEntityIdsByTag: (tag: string) => number[]
+  findEntityIdsByObjectType: (objectType: string) => number[]
+  entities: Map<number, unknown>
+}
+
+interface PointerPayload {
+  detail?: {
+    x?: number
+    y?: number
+    button?: number
+    pointerId?: string | number
+    pointerType?: string
+  }
+}
+
+interface GuardStateLike {
+  [key: string]: unknown
+  mode?: string
+  heading?: number
+  guardPath?: PointLike[]
+  guardPathIndex?: number
+  investigatePhase?: string
+  lastMoveX?: number
+  lastMoveY?: number
+}
+
+interface LayoutRect {
+  x: number
+  y: number
+  w?: number
+  h?: number
+  s?: number
+}
+
+interface ProceduralLayoutLike {
+  worldW: number
+  worldH: number
+  roomSize: number
+  walls: Array<Required<Pick<LayoutRect, 'x' | 'y' | 'w' | 'h'>>>
+  doors: Array<Required<Pick<LayoutRect, 'x' | 'y' | 'w' | 'h'>>>
+  finalExitDoor: Required<Pick<LayoutRect, 'x' | 'y' | 'w' | 'h'>> | null
+  outsideGoal: PointLike | null
+  cornerFillers: Array<Required<Pick<LayoutRect, 'x' | 'y' | 's'>>>
+  containers: Array<Required<Pick<LayoutRect, 'x' | 'y' | 's'>>>
+  player: PointLike
+  guards: PointLike[]
+}
+
+interface WeaponOptionsLike {
+  weaponTexture?: Texture | null
+  weaponIndex?: number
+  weaponCount?: number
+}
 
 /** UI text for this game: Bungee is loaded by this system at runtime. */
 const BUNGEE_FONT = '"Bungee", cursive'
@@ -22,7 +102,8 @@ export class StealthAssassinGame extends BaseSystem {
     pointer: true,
     wheel: false,
     gamepad: false
-  }
+  };
+  [key: string]: any
 
   constructor () {
     super()
@@ -109,7 +190,7 @@ export class StealthAssassinGame extends BaseSystem {
     this._guardConeDistanceHistory = new Map()
     this._guardInvestigateRingById = new Map()
     this._patrolState = new Map()
-    this._bullets = []
+    this._bulletEntityIds = new Set()
     this._worldFxRoot = null
     this._kills = 0
     this._playerHp = this.playerMaxHp
@@ -132,7 +213,7 @@ export class StealthAssassinGame extends BaseSystem {
     this._playerLastMotionPos = null
   }
 
-  configure (options = {}) {
+  configure (options: Record<string, unknown> = {}) {
     if (options.playerMetaName != null)
       this.playerMetaName = String(options.playerMetaName)
     if (options.playerMoveSpeed != null)
@@ -279,7 +360,7 @@ export class StealthAssassinGame extends BaseSystem {
       )
   }
 
-  setRuntime (w, h, inputCoordinator) {
+  setRuntime (w: number, h: number, inputCoordinator: unknown) {
     this._viewW = Number(w) || this._viewW
     this._viewH = Number(h) || this._viewH
     this._inputCoordinator = inputCoordinator
@@ -359,7 +440,7 @@ export class StealthAssassinGame extends BaseSystem {
 
   _refreshBungeeTexts () {
     if (!this._uiRoot) return
-    const walk = node => {
+    const walk = (node: any) => {
       if (!node) return
       if (node instanceof Text) {
         if (node.style) node.style.fontFamily = BUNGEE_FONT
@@ -374,20 +455,20 @@ export class StealthAssassinGame extends BaseSystem {
 
   _installInteractionGuards () {
     if (typeof document === 'undefined' || typeof window === 'undefined') return
-    if (window.__stealthInteractionGuardsInstalled) return
-    window.__stealthInteractionGuardsInstalled = true
+    if ((window as any).__stealthInteractionGuardsInstalled) return
+    ;(window as any).__stealthInteractionGuardsInstalled = true
 
-    document.addEventListener('contextmenu', ev => ev.preventDefault())
+    document.addEventListener('contextmenu', (ev: any) => ev.preventDefault())
 
     window.addEventListener(
       'wheel',
-      ev => {
+      (ev: any) => {
         if (ev.ctrlKey || ev.metaKey) ev.preventDefault()
       },
       { passive: false }
     )
 
-    const blockGesture = ev => ev.preventDefault()
+    const blockGesture = (ev: any) => ev.preventDefault()
     document.addEventListener('gesturestart', blockGesture, { passive: false })
     document.addEventListener('gesturechange', blockGesture, { passive: false })
     document.addEventListener('gestureend', blockGesture, { passive: false })
@@ -401,7 +482,7 @@ export class StealthAssassinGame extends BaseSystem {
     )
   }
 
-  bootstrap (world, registry, stage, entityBuilder, fullConfig) {
+  bootstrap (world: WorldLike, registry: unknown, stage: Container, entityBuilder: unknown, fullConfig: Record<string, unknown>) {
     if (!this.enabled) return
     this._ensureBungeeFontLoaded()
     this._installInteractionGuards()
@@ -416,7 +497,7 @@ export class StealthAssassinGame extends BaseSystem {
     this._rebuildProceduralMap(world)
   }
 
-  setScreenUi (uiRoot, w, h) {
+  setScreenUi (uiRoot: Container | null, w: number, h: number) {
     this._uiRoot = uiRoot
     this._viewW = Number(w) || this._viewW
     this._viewH = Number(h) || this._viewH
@@ -473,7 +554,7 @@ export class StealthAssassinGame extends BaseSystem {
     this._exitDoorUnlocked = false
     this._outsideGoal = null
     this._simTime = 0
-    this._clearBullets()
+    this._clearBullets(this._world)
     if (this._targetRing?.parent)
       this._targetRing.parent.removeChild(this._targetRing)
     this._targetRing = null
@@ -489,7 +570,7 @@ export class StealthAssassinGame extends BaseSystem {
     this._bindPointerClick()
   }
 
-  update (dt, world) {
+  update (dt: number, world: WorldLike) {
     if (!this.enabled || this._gameOver || this._won) return
     this._simTime += Math.max(0, dt)
     this._updateToast(dt)
@@ -534,7 +615,7 @@ export class StealthAssassinGame extends BaseSystem {
       }
     }
 
-    let colliders = buildColliderList(world)
+    let colliders = buildColliderList(world as any)
     const navRadius = this._playerNavRadius()
     this._resolvePendingClick(world, playerTr, colliders)
     this._updateTargetEnemyTracking(world, playerTr, colliders, dt, navRadius)
@@ -553,12 +634,12 @@ export class StealthAssassinGame extends BaseSystem {
     this._recoverPlayerIfStuck(dt, playerTr, colliders, navRadius)
     // Anchor path rendering to the post-move player position.
     this._lastPlayerPos = { x: playerTr.x, y: playerTr.y }
-    colliders = buildColliderList(world)
+    colliders = buildColliderList(world as any)
     const playerBox = this._playerAabb(playerTr)
 
     this._updateGuardsAi(world, dt, colliders, playerTr)
-    this._updateBullets(dt, colliders, playerTr)
-    colliders = buildColliderList(world)
+    this._updateBullets(world, colliders, playerTr)
+    colliders = buildColliderList(world as any)
 
     let aliveTargets = 0
     for (const c of colliders) {
@@ -605,7 +686,7 @@ export class StealthAssassinGame extends BaseSystem {
     if (aliveTargets === 0) {
       for (const c of colliders) {
         if (!this._hasTag(world, c.entityId, 'exit')) continue
-        if (aabbOverlap(playerBox, c)) {
+        if (aabbOverlap(playerBox as any, c as any)) {
           this._showResult('MISSION COMPLETE', 0x86efac)
           this._won = true
           return
@@ -760,7 +841,7 @@ export class StealthAssassinGame extends BaseSystem {
     this._hudKillsValue = killsValue
   }
 
-  _applyPlayerSkinFrame (view) {
+  _applyPlayerSkinFrame (view: Sprite | null) {
     if (this._playerSkinApplied) return
     if (!(view instanceof Sprite)) return
     const baseTex = view.texture
@@ -783,7 +864,7 @@ export class StealthAssassinGame extends BaseSystem {
     this._playerSkinApplied = true
   }
 
-  _applyEnemySkinFrame (entityId, view) {
+  _applyEnemySkinFrame (entityId: number, view: Sprite | null) {
     if (this._enemySkinAppliedIds.has(entityId)) return
     if (!(view instanceof Sprite)) return
     const baseTex = view.texture
@@ -810,7 +891,7 @@ export class StealthAssassinGame extends BaseSystem {
     this._enemySkinAppliedIds.add(entityId)
   }
 
-  _syncSkinMount (sourceView, skinMount) {
+  _syncSkinMount (sourceView: Sprite | null, skinMount: Container | null) {
     if (!sourceView || !skinMount) return
     if (sourceView.parent && skinMount.parent !== sourceView.parent) {
       sourceView.parent.addChild(skinMount)
@@ -831,7 +912,7 @@ export class StealthAssassinGame extends BaseSystem {
   _bindPointerClick () {
     if (this._unsubPointer || !this._inputCoordinator?.hub) return
     const hub = this._inputCoordinator.hub
-    const onDown = ev => {
+    const onDown = (ev: PointerPayload) => {
       const d = /** @type {CustomEvent} */ (ev).detail ?? {}
       if (Number(d.button ?? 0) !== 0) return
       if (this._touchControlsEnabled && (d.pointerType == null || d.pointerType === 'touch')) {
@@ -848,7 +929,7 @@ export class StealthAssassinGame extends BaseSystem {
       }
       this._pendingClick = { x: Number(d.x ?? 0), y: Number(d.y ?? 0) }
     }
-    const onMove = ev => {
+    const onMove = (ev: PointerPayload) => {
       if (!this._touchControlsEnabled || !this._touchJoyCenter) return
       const d = /** @type {CustomEvent} */ (ev).detail ?? {}
       const pid = d.pointerId ?? 'touch-0'
@@ -871,7 +952,7 @@ export class StealthAssassinGame extends BaseSystem {
         }
       }
     }
-    const onUp = ev => {
+    const onUp = (ev: PointerPayload) => {
       if (!this._touchControlsEnabled) return
       const d = /** @type {CustomEvent} */ (ev).detail ?? {}
       const pid = d.pointerId ?? 'touch-0'
@@ -894,7 +975,7 @@ export class StealthAssassinGame extends BaseSystem {
     }
   }
 
-  _applyVirtualTouchJoystick (dt, playerTr, colliders, navRadius) {
+  _applyVirtualTouchJoystick (dt: number, playerTr: TransformLike, colliders: ColliderLike[], navRadius: number) {
     if (!this._touchControlsEnabled) return false
     const smoothFollow = 1 - Math.exp(-20 * dt)
     this._touchMoveSmoothVec.x +=
@@ -965,7 +1046,7 @@ export class StealthAssassinGame extends BaseSystem {
     this._touchHintText = text
   }
 
-  _updateTouchHintOverlay (dt) {
+  _updateTouchHintOverlay (dt: number) {
     if (!this._touchControlsEnabled || !this._uiRoot) {
       if (this._touchHintRoot?.parent) this._touchHintRoot.parent.removeChild(this._touchHintRoot)
       this._touchHintRoot = null
@@ -997,7 +1078,7 @@ export class StealthAssassinGame extends BaseSystem {
     const b = Math.max(22, Math.min(36, this._viewH * 0.05))
     const phase = this._touchHintAnimT
     const eps = 0.045
-    const pAt = t => ({
+    const pAt = (t: number) => ({
       x: cx + a * Math.sin(t),
       y: cy + b * Math.sin(t) * Math.cos(t)
     })
@@ -1030,7 +1111,7 @@ export class StealthAssassinGame extends BaseSystem {
     this._touchHintText.position.set(cx, cy + b + 10)
   }
 
-  _showResult (title, color) {
+  _showResult (title: string, color: number) {
     if (!this._uiRoot || this._overlay) return
     const root = new Container()
     root.zIndex = 300
@@ -1118,13 +1199,13 @@ export class StealthAssassinGame extends BaseSystem {
     this._overlay = root
   }
 
-  _hasTag (world, id, tag) {
+  _hasTag (world: WorldLike, id: number, tag: string) {
     const m = world.getComponent(id, COMPONENT_META)
     const tags = m?.tags
     return Array.isArray(tags) && tags.includes(tag)
   }
 
-  _updateGuardsAi (world, dt, colliders, playerTr) {
+  _updateGuardsAi (world: WorldLike, dt: number, colliders: ColliderLike[], playerTr: TransformLike) {
     const guards = world.findEntityIdsByTag('guard')
     for (const id of guards) {
       const tr = world.getComponent(id, COMPONENT_TRANSFORM)
@@ -1238,7 +1319,7 @@ export class StealthAssassinGame extends BaseSystem {
         } else {
           state.fireCooldown -= dt
           if (state.fireCooldown <= 0) {
-            this._spawnBullet(tr.x, tr.y, playerTr.x, playerTr.y)
+            this._spawnBullet(world, tr.x, tr.y, playerTr.x, playerTr.y)
             state.fireCooldown = this.guardFireInterval
           }
         }
@@ -1567,7 +1648,7 @@ export class StealthAssassinGame extends BaseSystem {
     }
   }
 
-  _guardChasePlayer (tr, state, dt, colliders, playerTr, guardId) {
+  _guardChasePlayer (tr: TransformLike, state: GuardStateLike, dt: number, colliders: ColliderLike[], playerTr: TransformLike, guardId: number) {
     const speed = this.guardChaseSpeed
     const dx = playerTr.x - tr.x
     const dy = playerTr.y - tr.y
@@ -1605,13 +1686,13 @@ export class StealthAssassinGame extends BaseSystem {
   }
 
   _canGuardSeePlayer (
-    guardId,
-    gTr,
-    pTr,
-    visionRange,
-    fovDeg,
-    colliders,
-    world,
+    guardId: number,
+    gTr: TransformLike,
+    pTr: TransformLike,
+    visionRange: number,
+    fovDeg: number,
+    colliders: ColliderLike[],
+    world: WorldLike,
     headingAngle = null
   ) {
     const dx = pTr.x - gTr.x
@@ -1635,7 +1716,7 @@ export class StealthAssassinGame extends BaseSystem {
     )
   }
 
-  _tryAutoTakedown (world, pTr, colliders) {
+  _tryAutoTakedown (world: WorldLike, pTr: TransformLike, colliders: ColliderLike[]) {
     const guards = world.findEntityIdsByTag('guard')
     const contactKillRange = this.playerRadius + this.guardRadius + 2
     const frontalKillRange = Math.max(
@@ -1679,7 +1760,7 @@ export class StealthAssassinGame extends BaseSystem {
     }
   }
 
-  _alertNearbyGuardsOnKill (world, deadGuardId, x, y) {
+  _alertNearbyGuardsOnKill (world: WorldLike, deadGuardId: number, x: number, y: number) {
     const guards = world.findEntityIdsByTag('guard')
     for (const gid of guards) {
       if (gid === deadGuardId) continue
@@ -1705,7 +1786,7 @@ export class StealthAssassinGame extends BaseSystem {
     }
   }
 
-  _planGuardPath (start, goal, colliders, guardId) {
+  _planGuardPath (start: { x: number; y: number }, goal: { x: number; y: number }, colliders: ColliderLike[], guardId: number) {
     const raw = this._findPathWithFallback(
       start,
       goal,
@@ -1723,9 +1804,10 @@ export class StealthAssassinGame extends BaseSystem {
     )
   }
 
-  _moveGuardAlongPath (tr, state, speed, dt, colliders, id) {
+  _moveGuardAlongPath (tr: TransformLike, state: GuardStateLike, speed: number, dt: number, colliders: ColliderLike[], id: number) {
     if (!Array.isArray(state.guardPath) || !state.guardPath.length) return true
-    const target = state.guardPath[state.guardPathIndex]
+    const pathIndex = state.guardPathIndex ?? 0
+    const target = state.guardPath[pathIndex]
     if (!target) return true
     const dx = target.x - tr.x
     const dy = target.y - tr.y
@@ -1735,8 +1817,8 @@ export class StealthAssassinGame extends BaseSystem {
       if (this._canOccupyCircle(target.x, target.y, this.guardRadius, colliders, id)) {
         tr.x = target.x
         tr.y = target.y
-        state.guardPathIndex += 1
-        return state.guardPathIndex >= state.guardPath.length
+        state.guardPathIndex = pathIndex + 1
+        return (state.guardPathIndex ?? 0) >= state.guardPath.length
       }
       return true
     }
@@ -1747,7 +1829,7 @@ export class StealthAssassinGame extends BaseSystem {
       state.mode === 'investigateMove' ||
       (state.mode === 'investigateSearch' && state.investigatePhase === 'walk')
     const turnStep = (isInvestigatePathing ? this.enemyTurnSmoothSpeed : this.patrolTurnSpeed) * dt
-    state.heading = smoothAngleStep(state.heading, desiredHeading, turnStep)
+    state.heading = smoothAngleStep(state.heading ?? desiredHeading, desiredHeading, turnStep)
     const turnRemaining = Math.abs(normalizeAngle(desiredHeading - state.heading))
     // During investigate movement, fully rotate first, then move.
     if (isInvestigatePathing && turnRemaining > 0.18) {
@@ -1771,7 +1853,7 @@ export class StealthAssassinGame extends BaseSystem {
     return false
   }
 
-  _drawInvestigateRings (world) {
+  _drawInvestigateRings (world: WorldLike) {
     const guards = world.findEntityIdsByTag('guard')
     const active = new Set(guards)
     for (const id of guards) {
@@ -1810,7 +1892,7 @@ export class StealthAssassinGame extends BaseSystem {
     this._guardInvestigateRingById.clear()
   }
 
-  _resolvePendingClick (world, playerTr, colliders) {
+  _resolvePendingClick (world: WorldLike, playerTr: TransformLike, colliders: ColliderLike[]) {
     if (!this._pendingClick) return
     const click = this._pendingClick
     this._pendingClick = null
@@ -1857,7 +1939,7 @@ export class StealthAssassinGame extends BaseSystem {
     )
   }
 
-  _showToast (message, bgColor = 0x7f1d1d) {
+  _showToast (message: string, bgColor = 0x7f1d1d) {
     if (!this._uiRoot) return
     if (this._toastRoot?.parent) this._toastRoot.parent.removeChild(this._toastRoot)
     const root = new Container()
@@ -1887,7 +1969,7 @@ export class StealthAssassinGame extends BaseSystem {
     this._toastTimer = 1.1
   }
 
-  _updateToast (dt) {
+  _updateToast (dt: number) {
     if (!this._toastRoot) return
     this._toastTimer -= dt
     if (this._toastTimer <= 0) {
@@ -1903,7 +1985,7 @@ export class StealthAssassinGame extends BaseSystem {
     }
   }
 
-  _updateTargetEnemyTracking (world, playerTr, colliders, dt, navRadius) {
+  _updateTargetEnemyTracking (world: WorldLike, playerTr: TransformLike, colliders: ColliderLike[], dt: number, navRadius: number) {
     void dt
     if (this._targetEnemyId == null) return
     if (!world.entities.has(this._targetEnemyId)) {
@@ -1937,7 +2019,7 @@ export class StealthAssassinGame extends BaseSystem {
     )
   }
 
-  _movePlayerAlongPath (dt, playerTr, colliders, navRadius) {
+  _movePlayerAlongPath (dt: number, playerTr: TransformLike, colliders: ColliderLike[], navRadius: number) {
     if (!this._playerPath.length) {
       if (this._desiredGoal) {
         const settleDist = Math.max(2, navRadius * 0.22)
@@ -2046,7 +2128,7 @@ export class StealthAssassinGame extends BaseSystem {
     }
   }
 
-  _assignSmartRoute (start, goal, colliders, navRadius) {
+  _assignSmartRoute (start: PointLike, goal: PointLike, colliders: ColliderLike[], navRadius: number) {
     if (this._hasClearCorridor(start, goal, navRadius, colliders)) {
       this._playerPath = [goal]
       this._playerPathIndex = 0
@@ -2139,7 +2221,7 @@ export class StealthAssassinGame extends BaseSystem {
     g.stroke({ width: 6, color: 0xfacc15, alpha: 1 })
   }
 
-  _drawTargetRing (world) {
+  _drawTargetRing (world: WorldLike) {
     if (!this._targetRing) return
     const g = this._targetRing
     g.clear()
@@ -2174,7 +2256,7 @@ export class StealthAssassinGame extends BaseSystem {
     g.stroke({ width: 3, color, alpha })
   }
 
-  _drawGuardCone (world, id, tr, visionRange, fovDeg, colliders) {
+  _drawGuardCone (world: WorldLike, id: number, tr: TransformLike, visionRange: number, fovDeg: number, colliders: ColliderLike[]) {
     const disp = world.getComponent(id, COMPONENT_DISPLAY)
     if (!disp?.view?.parent) return
     let g = this._guardConeById.get(id)
@@ -2231,7 +2313,7 @@ export class StealthAssassinGame extends BaseSystem {
       const a = a0 + (a1 - a0) * t
       const ux = Math.cos(a)
       const uy = Math.sin(a)
-      const filtered = spatialHits[i]
+      const filtered = spatialHits[i] ?? visionRange
       const prev = prevHits[i] ?? filtered
       const hitDist = prev + (filtered - prev) * temporalSmooth
       nextHits[i] = hitDist
@@ -2258,11 +2340,11 @@ export class StealthAssassinGame extends BaseSystem {
     g.stroke({ width: 1.2, color: 0xdc2626, alpha: 0.65 })
   }
 
-  _screenToWorld (world, sx, sy) {
+  _screenToWorld (world: WorldLike, sx: number, sy: number) {
     const camEnt = [...world.entities.values()].find(
-      e => !!e.components.get(COMPONENT_CAMERA)
-    )
-    const cam = camEnt?.components?.get(COMPONENT_CAMERA)
+      (e: any) => !!e?.components?.get?.(COMPONENT_CAMERA)
+    ) as any
+    const cam = camEnt?.components?.get?.(COMPONENT_CAMERA)
     if (!cam) return { x: sx, y: sy }
     let tx = this._viewW / 2
     let ty = this._viewH / 2
@@ -2287,14 +2369,14 @@ export class StealthAssassinGame extends BaseSystem {
     }
   }
 
-  _guardDoorApproachPad (radius) {
+  _guardDoorApproachPad (radius: number) {
     return Math.max(
       40,
       radius + this.guardWallSafeDistance + this.playerWallSafeDistance + 14
     )
   }
 
-  _guardShouldBypassClosedDoor (x, y, c, radius, forPathPlanning) {
+  _guardShouldBypassClosedDoor (x: number, y: number, c: ColliderLike, radius: number, forPathPlanning: boolean) {
     if (forPathPlanning) return false
     const pad = this._guardDoorApproachPad(radius)
     return (
@@ -2305,7 +2387,7 @@ export class StealthAssassinGame extends BaseSystem {
     )
   }
 
-  _markNearbyDoorsOpenForGuard (x, y, radius, colliders) {
+  _markNearbyDoorsOpenForGuard (x: number, y: number, radius: number, colliders: ColliderLike[]) {
     for (const c of colliders) {
       if (c.kind !== 'solid') continue
       if (!this._doorIds.has(c.entityId)) continue
@@ -2314,7 +2396,7 @@ export class StealthAssassinGame extends BaseSystem {
     }
   }
 
-  _canOccupyCircle (x, y, radius, colliders, ignoreEntityId, forPathPlanning = false) {
+  _canOccupyCircle (x: number, y: number, radius: number, colliders: ColliderLike[], ignoreEntityId: number, forPathPlanning = false) {
     const a = {
       left: x - radius,
       right: x + radius,
@@ -2384,12 +2466,12 @@ export class StealthAssassinGame extends BaseSystem {
   }
 
   _distanceToNearestBlockingSolid (
-    x,
-    y,
-    colliders,
-    ignoreEntityId,
+    x: number,
+    y: number,
+    colliders: ColliderLike[],
+    ignoreEntityId: number,
     forPathPlanning = false,
-    radius = null
+    radius: number | null = null
   ) {
     const isPlayer = ignoreEntityId === -1
     let best = Infinity
@@ -2417,7 +2499,7 @@ export class StealthAssassinGame extends BaseSystem {
     return Number.isFinite(best) ? best : Infinity
   }
 
-  _pickEnemyAt (world, x, y) {
+  _pickEnemyAt (world: WorldLike, x: number, y: number) {
     const guards = world.findEntityIdsByTag('guard')
     for (const id of guards) {
       const tr = world.getComponent(id, COMPONENT_TRANSFORM)
@@ -2432,7 +2514,7 @@ export class StealthAssassinGame extends BaseSystem {
     return Math.max(6, this.playerRadius - 1.75)
   }
 
-  _hasClearCorridor (start, goal, radius, colliders, moverEntityId = -1) {
+  _hasClearCorridor (start: PointLike, goal: PointLike, radius: number, colliders: ColliderLike[], moverEntityId = -1) {
     const pathPlanning = moverEntityId !== -1
     const dx = goal.x - start.x
     const dy = goal.y - start.y
@@ -2459,7 +2541,7 @@ export class StealthAssassinGame extends BaseSystem {
     return true
   }
 
-  _simplifyPathWithVisibility (start, path, colliders, radius, moverEntityId = -1) {
+  _simplifyPathWithVisibility (start: PointLike, path: PointLike[], colliders: ColliderLike[], radius: number, moverEntityId = -1) {
     if (!Array.isArray(path) || path.length <= 1)
       return Array.isArray(path) ? path : []
     const out = []
@@ -2468,92 +2550,126 @@ export class StealthAssassinGame extends BaseSystem {
     while (i < path.length) {
       let best = i
       for (let j = i; j < path.length; j++) {
+        const candidate = path[j]!
         if (
-          this._hasClearCorridor(anchor, path[j], radius, colliders, moverEntityId)
+          this._hasClearCorridor(anchor, candidate, radius, colliders, moverEntityId)
         ) {
           best = j
         } else {
           break
         }
       }
-      out.push(path[best])
-      anchor = path[best]
+      out.push(path[best]!)
+      anchor = path[best]!
       i = best + 1
     }
     return out
   }
 
-  _spawnBullet (x0, y0, x1, y1) {
-    if (!this._worldFxRoot) return
+  _spawnBullet (world: WorldLike, x0: number, y0: number, x1: number, y1: number) {
+    if (!this._entityBuilder || !this._registry || !this._stage || !this._spawnOpts) return
     const dx = x1 - x0
     const dy = y1 - y0
     const d = Math.hypot(dx, dy) || 1
-    const ux = dx / d
-    const uy = dy / d
-    const view = new Graphics()
-    view.circle(0, 0, 4)
-    view.fill({ color: 0xf87171, alpha: 1 })
-    view.position.set(x0, y0)
-    view.zIndex = 165
-    this._worldFxRoot.addChild(view)
-    this._bullets.push({
-      x: x0,
-      y: y0,
-      vx: ux * this.bulletSpeed,
-      vy: uy * this.bulletSpeed,
-      life: 2.6,
-      view
-    })
+    const aimAngleDeg = (Math.atan2(dy, dx) * 180) / Math.PI
+    const entityId = this._entityBuilder.spawnFromInstance(
+      world,
+      this._registry,
+      this._stage,
+      this._spawnOpts,
+      {
+        id: `enemyBullet_${Date.now()}_${Math.floor(Math.random() * 1e6)}`,
+        plugin: 'Sprite',
+        layer: 'Top',
+        tags: ['enemyBullet'],
+        transform: { x: x0, y: y0, rotation: 0, scaleX: 8, scaleY: 8 },
+        sprite: { shape: 'circle', tint: 0xf87171, anchorX: 0.5, anchorY: 0.5 },
+        instanceVariables: {
+          startX: x0,
+          startY: y0,
+          targetX: x1,
+          targetY: y1,
+          aimAngleDeg,
+          maxDistance: d,
+          travelled: 0,
+          prevX: x0,
+          prevY: y0
+        },
+        behaviors: [
+          {
+            type: 'bullet',
+            speed: this.bulletSpeed,
+            angle: aimAngleDeg,
+            gravity: 0,
+            acceleration: 0,
+            destroyOnSolid: true
+          }
+        ]
+      }
+    )
+    this._bulletEntityIds.add(entityId)
   }
 
-  _updateBullets (dt, colliders, playerTr) {
-    for (let i = this._bullets.length - 1; i >= 0; i--) {
-      const b = this._bullets[i]
-      b.life -= dt
-      b.x += b.vx * dt
-      b.y += b.vy * dt
-      b.view.position.set(b.x, b.y)
-      if (
-        Math.hypot(playerTr.x - b.x, playerTr.y - b.y) <=
-        this.playerRadius + 4
-      ) {
+  _updateBullets (world: WorldLike, colliders: ColliderLike[], playerTr: TransformLike) {
+    const bulletIds = world.findEntityIdsByTag('enemyBullet')
+    for (const bulletId of bulletIds) {
+      const bTr = world.getComponent(bulletId, COMPONENT_TRANSFORM)
+      const bIv = world.getComponent(bulletId, COMPONENT_INSTANCE_VARIABLES)
+      if (!bTr || !bIv) continue
+      const prevX = Number(bIv.get('prevX') ?? bTr.x)
+      const prevY = Number(bIv.get('prevY') ?? bTr.y)
+      const segLen = Math.hypot(bTr.x - prevX, bTr.y - prevY)
+      const travelled = Number(bIv.get('travelled') ?? 0) + segLen
+      const maxDistance = Number(bIv.get('maxDistance') ?? Number.POSITIVE_INFINITY)
+
+      const hitWall = rayBlockedSolids(
+        prevX,
+        prevY,
+        bTr.x,
+        bTr.y,
+        6,
+        colliders,
+        bulletId,
+        world
+      )
+      const hitPlayer = segmentIntersectsCircle(
+        prevX,
+        prevY,
+        bTr.x,
+        bTr.y,
+        playerTr.x,
+        playerTr.y,
+        this.playerRadius + 6
+      )
+      const reachedTarget = travelled >= maxDistance
+
+      if (hitPlayer) {
         this._playerHp = Math.max(0, this._playerHp - this.bulletDamage)
+        world.destroyEntity(bulletId)
         if (this._playerHp <= 0) {
           this._showResult('MISSION FAILED', 0xfca5a5)
           this._gameOver = true
         }
-        b.life = 0
+        continue
       }
-      let blocked = b.life <= 0
-      if (!blocked) {
-        for (const c of colliders) {
-          if (c.kind !== 'solid') continue
-          if (
-            b.x >= c.left &&
-            b.x <= c.right &&
-            b.y >= c.top &&
-            b.y <= c.bottom
-          ) {
-            blocked = true
-            break
-          }
-        }
+      if (hitWall || reachedTarget) {
+        world.destroyEntity(bulletId)
+        continue
       }
-      if (blocked) {
-        if (b.view.parent) b.view.parent.removeChild(b.view)
-        this._bullets.splice(i, 1)
-      }
+      bIv.set('travelled', travelled)
+      bIv.set('prevX', bTr.x)
+      bIv.set('prevY', bTr.y)
     }
   }
 
-  _clearBullets () {
-    for (const b of this._bullets) {
-      if (b.view?.parent) b.view.parent.removeChild(b.view)
-    }
-    this._bullets = []
+  _clearBullets (world = this._world) {
+    if (!world) return
+    const bulletIds = world.findEntityIdsByTag('enemyBullet')
+    for (const bulletId of bulletIds) world.destroyEntity(bulletId)
+    this._bulletEntityIds.clear()
   }
 
-  _playerAabb (tr) {
+  _playerAabb (tr: TransformLike) {
     return {
       left: tr.x - this.playerRadius,
       right: tr.x + this.playerRadius,
@@ -2562,7 +2678,7 @@ export class StealthAssassinGame extends BaseSystem {
     }
   }
 
-  _findPathWithFallback (start, goal, colliders, radius, cell, moverEntityId = -1) {
+  _findPathWithFallback (start: PointLike, goal: PointLike, colliders: ColliderLike[], radius: number, cell: number, moverEntityId = -1) {
     const pathPlanning = moverEntityId !== -1
     const primary = this._findPath(
       start,
@@ -2576,11 +2692,11 @@ export class StealthAssassinGame extends BaseSystem {
 
     // If exact goal is blocked or unreachable, pick nearest reachable alternative.
     const bounds = this._solidBounds(colliders)
-    const toCell = p => ({
+    const toCell = (p: PointLike) => ({
       cx: Math.round((p.x - bounds.minX) / cell),
       cy: Math.round((p.y - bounds.minY) / cell)
     })
-    const toWorld = (cx, cy) => ({
+    const toWorld = (cx: number, cy: number) => ({
       x: bounds.minX + cx * cell,
       y: bounds.minY + cy * cell
     })
@@ -2640,20 +2756,20 @@ export class StealthAssassinGame extends BaseSystem {
     return null
   }
 
-  _findPath (start, goal, colliders, radius, cell, moverEntityId = -1) {
+  _findPath (start: PointLike, goal: PointLike, colliders: ColliderLike[], radius: number, cell: number, moverEntityId = -1) {
     const pathPlanning = moverEntityId !== -1
     const bounds = this._solidBounds(colliders)
-    const toCell = p => ({
+    const toCell = (p: PointLike) => ({
       cx: Math.round((p.x - bounds.minX) / cell),
       cy: Math.round((p.y - bounds.minY) / cell)
     })
-    const toWorld = (cx, cy) => ({
+    const toWorld = (cx: number, cy: number) => ({
       x: bounds.minX + cx * cell,
       y: bounds.minY + cy * cell
     })
     const s = toCell(start)
     const g = toCell(goal)
-    const key = (cx, cy) => `${cx},${cy}`
+    const key = (cx: number, cy: number) => `${cx},${cy}`
     const open = [s]
     const closed = new Set()
     const came = new Map()
@@ -2662,7 +2778,7 @@ export class StealthAssassinGame extends BaseSystem {
       [key(s.cx, s.cy), Math.hypot(g.cx - s.cx, g.cy - s.cy)]
     ])
     // 4-way grid navigation only (no diagonals) for cleaner row/column routes.
-    const cardinal = [
+    const cardinal: Array<[number, number]> = [
       [1, 0],
       [-1, 0],
       [0, 1],
@@ -2674,14 +2790,14 @@ export class StealthAssassinGame extends BaseSystem {
       let bestIdx = 0
       let bestF = Infinity
       for (let i = 0; i < open.length; i++) {
-        const k = key(open[i].cx, open[i].cy)
+        const k = key(open[i]!.cx, open[i]!.cy)
         const f = fScore.get(k) ?? Infinity
         if (f < bestF) {
           bestF = f
           bestIdx = i
         }
       }
-      const current = open.splice(bestIdx, 1)[0]
+      const current = open.splice(bestIdx, 1)[0]!
       const currentKey = key(current.cx, current.cy)
       if (closed.has(currentKey)) continue
       closed.add(currentKey)
@@ -2690,7 +2806,7 @@ export class StealthAssassinGame extends BaseSystem {
         let ck = currentKey
         while (ck) {
           const [sx, sy] = ck.split(',').map(Number)
-          out.push(toWorld(sx, sy))
+          out.push(toWorld(sx ?? 0, sy ?? 0))
           ck = came.get(ck)
         }
         out.reverse()
@@ -2736,7 +2852,7 @@ export class StealthAssassinGame extends BaseSystem {
     return null
   }
 
-  _solidBounds (colliders) {
+  _solidBounds (colliders: ColliderLike[]) {
     let minX = Infinity
     let minY = Infinity
     let maxX = -Infinity
@@ -2753,7 +2869,7 @@ export class StealthAssassinGame extends BaseSystem {
     return { minX, minY, maxX, maxY }
   }
 
-  _orderedCardinalNeighbors (cx, cy, gx, gy, cardinal) {
+  _orderedCardinalNeighbors (cx: number, cy: number, gx: number, gy: number, cardinal: Array<[number, number]>) {
     const sx = Math.sign(gx - cx)
     const sy = Math.sign(gy - cy)
     const xFirst = Math.abs(gx - cx) >= Math.abs(gy - cy)
@@ -2770,22 +2886,22 @@ export class StealthAssassinGame extends BaseSystem {
           [0, -(sy || 1)],
           [-(sx || 1), 0]
         ]
-    const out = []
+    const out: Array<[number, number]> = []
     for (const [dx, dy] of primary) {
       if (
-        cardinal.some(n => n[0] === dx && n[1] === dy) &&
-        !out.some(n => n[0] === dx && n[1] === dy)
+        cardinal.some((n) => n[0] === dx && n[1] === dy) &&
+        !out.some((n) => n[0] === dx && n[1] === dy)
       ) {
-        out.push([dx, dy])
+        out.push([Number(dx), Number(dy)])
       }
     }
     for (const [dx, dy] of cardinal) {
-      if (!out.some(n => n[0] === dx && n[1] === dy)) out.push([dx, dy])
+      if (!out.some((n) => n[0] === dx && n[1] === dy)) out.push([dx, dy])
     }
     return out
   }
 
-  _distanceToNearestSolid (x, y, colliders) {
+  _distanceToNearestSolid (x: number, y: number, colliders: ColliderLike[]) {
     let best = Infinity
     for (const c of colliders) {
       if (c.kind !== 'solid') continue
@@ -2797,11 +2913,11 @@ export class StealthAssassinGame extends BaseSystem {
     return Number.isFinite(best) ? best : Infinity
   }
 
-  _resolvePlayerWallPenetration (playerTr, colliders, radius) {
+  _resolvePlayerWallPenetration (playerTr: TransformLike, colliders: ColliderLike[], radius: number) {
     this._resolveCircleWallPenetration(playerTr, colliders, radius, -1)
   }
 
-  _recoverPlayerIfStuck (dt, playerTr, colliders, navRadius) {
+  _recoverPlayerIfStuck (dt: number, playerTr: TransformLike, colliders: ColliderLike[], navRadius: number) {
     const last = this._playerLastMotionPos
     if (!last) {
       this._playerLastMotionPos = { x: playerTr.x, y: playerTr.y }
@@ -2832,9 +2948,9 @@ export class StealthAssassinGame extends BaseSystem {
     this._playerLastMotionPos.y = playerTr.y
   }
 
-  _respawnPlayerNearStuck (playerTr, navRadius, colliders) {
+  _respawnPlayerNearStuck (playerTr: TransformLike, navRadius: number, colliders: ColliderLike[]) {
     const step = 10
-    let preferred = null
+    let preferred: [number, number] | null = null
     let bestOverlap = 0
     for (const c of colliders) {
       if (c.kind !== 'solid') continue
@@ -2861,8 +2977,8 @@ export class StealthAssassinGame extends BaseSystem {
       [-1, 0],
       [0, -1],
       [0, 1]
-    ].filter(Boolean)
-    const uniqueDirs = []
+    ].filter((v): v is [number, number] => Array.isArray(v))
+    const uniqueDirs: Array<[number, number]> = []
     for (const d of dirs) {
       if (!uniqueDirs.some(v => v[0] === d[0] && v[1] === d[1])) uniqueDirs.push(d)
     }
@@ -2877,7 +2993,7 @@ export class StealthAssassinGame extends BaseSystem {
     return false
   }
 
-  _tryNudgeOutOfCorners (tr, radius, colliders, ignoreEntityId) {
+  _tryNudgeOutOfCorners (tr: TransformLike, radius: number, colliders: ColliderLike[], ignoreEntityId: number) {
     const dirs = 16
     for (let ring = 1; ring <= 4; ring++) {
       const dist = ring * Math.max(2, radius * 0.35)
@@ -2894,7 +3010,7 @@ export class StealthAssassinGame extends BaseSystem {
     return false
   }
 
-  _resolveCircleWallPenetration (tr, colliders, radius, ignoreEntityId = -1) {
+  _resolveCircleWallPenetration (tr: TransformLike, colliders: ColliderLike[], radius: number, ignoreEntityId = -1) {
     const isPlayer = ignoreEntityId === -1
     const maxIters = 6
     const skin = 0.03
@@ -2944,7 +3060,7 @@ export class StealthAssassinGame extends BaseSystem {
     }
   }
 
-  _rebuildProceduralMap (world) {
+  _rebuildProceduralMap (world: WorldLike) {
     if (!world || !this._entityBuilder || !this._registry || !this._stage || !this._spawnOpts)
       return
     this._proceduralMapReady = false
@@ -2960,7 +3076,7 @@ export class StealthAssassinGame extends BaseSystem {
     this._proceduralMapReady = true
   }
 
-  _despawnStaticMapEntities (world) {
+  _despawnStaticMapEntities (world: WorldLike) {
     const toDelete = new Set([
       ...world.findEntityIdsByObjectType('floorTile'),
       ...world.findEntityIdsByObjectType('wallBlock'),
@@ -2972,7 +3088,7 @@ export class StealthAssassinGame extends BaseSystem {
     for (const id of toDelete) world.destroyEntity(id)
   }
 
-  _spawnFromType (world, type, transform, extra = {}) {
+  _spawnFromType (world: WorldLike, type: string, transform: Record<string, unknown>, extra: Record<string, unknown> = {}) {
     return this._entityBuilder.spawnFromInstance(
       world,
       this._registry,
@@ -3001,34 +3117,34 @@ export class StealthAssassinGame extends BaseSystem {
     const openRight = Array.from({ length: roomsH }, () => Array(roomsW).fill(false))
     const openDown = Array.from({ length: roomsH }, () => Array(roomsW).fill(false))
     const visited = Array.from({ length: roomsH }, () => Array(roomsW).fill(false))
-    const stack = [{ x: 0, y: 0 }]
-    visited[0][0] = true
+    const stack: Array<{ x: number; y: number }> = [{ x: 0, y: 0 }]
+    visited[0]![0] = true
     while (stack.length) {
-      const cur = stack[stack.length - 1]
-      const nbrs = []
-      if (cur.x > 0 && !visited[cur.y][cur.x - 1]) nbrs.push({ x: cur.x - 1, y: cur.y, d: 'L' })
-      if (cur.x < roomsW - 1 && !visited[cur.y][cur.x + 1]) nbrs.push({ x: cur.x + 1, y: cur.y, d: 'R' })
-      if (cur.y > 0 && !visited[cur.y - 1][cur.x]) nbrs.push({ x: cur.x, y: cur.y - 1, d: 'U' })
-      if (cur.y < roomsH - 1 && !visited[cur.y + 1][cur.x]) nbrs.push({ x: cur.x, y: cur.y + 1, d: 'D' })
+      const cur = stack[stack.length - 1]!
+      const nbrs: Array<{ x: number; y: number; d: 'L' | 'R' | 'U' | 'D' }> = []
+      if (cur.x > 0 && !visited[cur.y]![cur.x - 1]) nbrs.push({ x: cur.x - 1, y: cur.y, d: 'L' })
+      if (cur.x < roomsW - 1 && !visited[cur.y]![cur.x + 1]) nbrs.push({ x: cur.x + 1, y: cur.y, d: 'R' })
+      if (cur.y > 0 && !visited[cur.y - 1]![cur.x]) nbrs.push({ x: cur.x, y: cur.y - 1, d: 'U' })
+      if (cur.y < roomsH - 1 && !visited[cur.y + 1]![cur.x]) nbrs.push({ x: cur.x, y: cur.y + 1, d: 'D' })
       if (!nbrs.length) {
         stack.pop()
         continue
       }
-      const next = nbrs[Math.floor(Math.random() * nbrs.length)]
-      if (next.d === 'R') openRight[cur.y][cur.x] = true
-      else if (next.d === 'L') openRight[next.y][next.x] = true
-      else if (next.d === 'D') openDown[cur.y][cur.x] = true
-      else if (next.d === 'U') openDown[next.y][next.x] = true
-      visited[next.y][next.x] = true
+      const next = nbrs[Math.floor(Math.random() * nbrs.length)]!
+      if (next.d === 'R') openRight[cur.y]![cur.x] = true
+      else if (next.d === 'L') openRight[next.y]![next.x] = true
+      else if (next.d === 'D') openDown[cur.y]![cur.x] = true
+      else if (next.d === 'U') openDown[next.y]![next.x] = true
+      visited[next.y]![next.x] = true
       stack.push({ x: next.x, y: next.y })
     }
 
-    const walls = []
-    const doors = []
-    const cornerFillers = []
-    const containers = []
-    const addWall = (x, y, w, h) => walls.push({ x, y, w, h })
-    const addWallWithOptionalDoor = (x, y, w, h, isVertical) => {
+    const walls: any[] = []
+    const doors: any[] = []
+    const cornerFillers: any[] = []
+    const containers: any[] = []
+    const addWall = (x: number, y: number, w: number, h: number) => walls.push({ x, y, w, h })
+    const addWallWithOptionalDoor = (x: number, y: number, w: number, h: number, isVertical: boolean) => {
       const minEdge = 16
       const canHaveDoor =
         (isVertical ? h : w) > this.doorSpan + minEdge * 2
@@ -3066,7 +3182,7 @@ export class StealthAssassinGame extends BaseSystem {
       addWall(rightX, lowerStart + lowerH * 0.5, wallThickness, lowerH)
     for (let y = 0; y < roomsH; y++) {
       for (let x = 0; x < roomsW; x++) {
-        if (x < roomsW - 1 && !openRight[y][x]) {
+        if (x < roomsW - 1 && !openRight[y]![x]) {
           addWallWithOptionalDoor(
             (x + 1) * roomSize,
             y * roomSize + half,
@@ -3075,7 +3191,7 @@ export class StealthAssassinGame extends BaseSystem {
             true
           )
         }
-        if (y < roomsH - 1 && !openDown[y][x]) {
+        if (y < roomsH - 1 && !openDown[y]![x]) {
           addWallWithOptionalDoor(
             x * roomSize + half,
             (y + 1) * roomSize,
@@ -3091,9 +3207,9 @@ export class StealthAssassinGame extends BaseSystem {
     for (let gy = 1; gy < roomsH; gy++) {
       for (let gx = 1; gx < roomsW; gx++) {
         const hasVertical =
-          !openRight[gy - 1][gx - 1] || !openRight[gy][gx - 1]
+          !openRight[gy - 1]![gx - 1] || !openRight[gy]![gx - 1]
         const hasHorizontal =
-          !openDown[gy - 1][gx - 1] || !openDown[gy - 1][gx]
+          !openDown[gy - 1]![gx - 1] || !openDown[gy - 1]![gx]
         if (!hasVertical || !hasHorizontal) continue
         cornerFillers.push({
           x: gx * roomSize,
@@ -3105,31 +3221,31 @@ export class StealthAssassinGame extends BaseSystem {
 
     // Box containers disabled by request.
 
-    const cellCenter = (cx, cy) => ({ x: cx * roomSize + half, y: cy * roomSize + half })
-    const guards = []
-    const key = (x, y) => `${x},${y}`
+    const cellCenter = (cx: number, cy: number) => ({ x: cx * roomSize + half, y: cy * roomSize + half })
+    const guards: Array<{ x: number; y: number }> = []
+    const key = (x: number, y: number) => `${x},${y}`
     const visitedCells = new Set()
     const queue = [{ x: playerCell.x, y: playerCell.y }]
     visitedCells.add(key(playerCell.x, playerCell.y))
     while (queue.length) {
-      const cur = queue.shift()
+      const cur = queue.shift()!
       const x = cur.x
       const y = cur.y
-      const pushIf = (nx, ny, passable) => {
+      const pushIf = (nx: number, ny: number, passable: boolean) => {
         if (!passable || nx < 0 || nx >= roomsW || ny < 0 || ny >= roomsH) return
         const k = key(nx, ny)
         if (visitedCells.has(k)) return
         visitedCells.add(k)
         queue.push({ x: nx, y: ny })
       }
-      pushIf(x + 1, y, x < roomsW - 1 && openRight[y][x])
-      pushIf(x - 1, y, x > 0 && openRight[y][x - 1])
-      pushIf(x, y + 1, y < roomsH - 1 && openDown[y][x])
-      pushIf(x, y - 1, y > 0 && openDown[y - 1][x])
+      pushIf(x + 1, y, x < roomsW - 1 && openRight[y]![x])
+      pushIf(x - 1, y, x > 0 && openRight[y]![x - 1])
+      pushIf(x, y + 1, y < roomsH - 1 && openDown[y]![x])
+      pushIf(x, y - 1, y > 0 && openDown[y - 1]![x])
     }
 
     const minEnemyCellDistanceFromPlayer = 3
-    const candidates = []
+    const candidates: Array<{ x: number; y: number }> = []
     for (let y = 0; y < roomsH; y++) {
       for (let x = 0; x < roomsW; x++) {
         const k = key(x, y)
@@ -3143,13 +3259,13 @@ export class StealthAssassinGame extends BaseSystem {
     }
     for (let i = candidates.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1))
-      const tmp = candidates[i]
-      candidates[i] = candidates[j]
+      const tmp = candidates[i]!
+      candidates[i] = candidates[j]!
       candidates[j] = tmp
     }
     const guardCount = Math.min(12, candidates.length)
     for (let i = 0; i < guardCount; i++) {
-      guards.push(cellCenter(candidates[i].x, candidates[i].y))
+      guards.push(cellCenter(candidates[i]!.x, candidates[i]!.y))
     }
     return {
       worldW,
@@ -3171,7 +3287,7 @@ export class StealthAssassinGame extends BaseSystem {
     }
   }
 
-  _spawnProceduralLayout (world, layout) {
+  _spawnProceduralLayout (world: WorldLike, layout: ProceduralLayoutLike) {
     if (this._tileGridGraphics?.parent)
       this._tileGridGraphics.parent.removeChild(this._tileGridGraphics)
     this._spawnFromType(world, 'floorTile', {
@@ -3332,11 +3448,11 @@ export class StealthAssassinGame extends BaseSystem {
     }
   }
 
-  _configureCameraBounds (world, layout) {
+  _configureCameraBounds (world: WorldLike, layout: ProceduralLayoutLike) {
     const camEnt = [...world.entities.values()].find(
-      e => !!e.components.get(COMPONENT_CAMERA)
-    )
-    const cam = camEnt?.components?.get(COMPONENT_CAMERA)
+      (e: any) => !!e?.components?.get?.(COMPONENT_CAMERA)
+    ) as any
+    const cam = camEnt?.components?.get?.(COMPONENT_CAMERA)
     if (!cam) return
     const zoom = this._isMobileLayout()
       ? STEALTH_CAMERA_ZOOM_MOBILE
@@ -3358,14 +3474,14 @@ export class StealthAssassinGame extends BaseSystem {
 }
 
 function rayBlockedSolids (
-  x0,
-  y0,
-  x1,
-  y1,
-  step,
-  colliders,
-  ignoreEntityId,
-  world
+  x0: number,
+  y0: number,
+  x1: number,
+  y1: number,
+  step: number,
+  colliders: ColliderLike[],
+  ignoreEntityId: number,
+  world: unknown
 ) {
   const d = Math.hypot(x1 - x0, y1 - y0)
   const n = Math.max(1, Math.ceil(d / Math.max(step, 1)))
@@ -3384,32 +3500,43 @@ function rayBlockedSolids (
   return false
 }
 
-function normalizeAngle (a) {
+function normalizeAngle (a: number) {
   let out = a
   while (out > Math.PI) out -= Math.PI * 2
   while (out < -Math.PI) out += Math.PI * 2
   return out
 }
 
-function smoothAngleStep (current, target, maxStep) {
+function smoothAngleStep (current: number, target: number, maxStep: number) {
   if (!Number.isFinite(current)) return target
   const d = normalizeAngle(target - current)
   if (Math.abs(d) <= maxStep) return target
   return current + Math.sign(d) * maxStep
 }
 
+function segmentIntersectsCircle (x0: number, y0: number, x1: number, y1: number, cx: number, cy: number, r: number) {
+  const dx = x1 - x0
+  const dy = y1 - y0
+  const len2 = dx * dx + dy * dy
+  if (len2 <= 1e-6) return Math.hypot(cx - x0, cy - y0) <= r
+  const t = Math.max(0, Math.min(1, ((cx - x0) * dx + (cy - y0) * dy) / len2))
+  const px = x0 + dx * t
+  const py = y0 + dy * t
+  return Math.hypot(cx - px, cy - py) <= r
+}
+
 /**
  * Extracts pixels from a source texture rectangle and returns an independent sprite.
  * The returned sprite owns a new texture created from a copied canvas region.
  *
- * @param {Texture} sourceTexture
+ * @param {Texture} sourceTexture Source texture.
  * @param {number} pxX source x in pixels
  * @param {number} pxY source y in pixels
  * @param {number} pxW width in pixels
  * @param {number} pxH height in pixels
- * @returns {Sprite | null}
+ * @returns {Sprite | null} Extracted sprite, or null when extraction fails.
  */
-function createSpriteFromPixelRegion (sourceTexture, pxX, pxY, pxW, pxH) {
+function createSpriteFromPixelRegion (sourceTexture: Texture, pxX: number, pxY: number, pxW: number, pxH: number) {
   if (!sourceTexture) return null
   const src = sourceTexture.source?.resource ?? sourceTexture.source
   if (!src) return null
@@ -3438,18 +3565,18 @@ function createSpriteFromPixelRegion (sourceTexture, pxX, pxY, pxW, pxH) {
  * Build a character from bag/head/hands slices of a selected 4x4 cell.
  * Uses uniform scaling so output is never stretched.
  *
- * @param {Texture} sourceTexture
+ * @param {Texture} sourceTexture Source sheet texture.
  * @param {number} col zero-based column in 4x4 sheet
  * @param {number} row zero-based row in 4x4 sheet
  * @param {number} targetSize output footprint (max side) in px
- * @returns {Container | null}
+ * @returns {Container | null} Composite character container, or null on invalid input.
  */
 function createCompositeCharacterContainer (
-  sourceTexture,
-  col,
-  row,
-  targetSize,
-  options = {}
+  sourceTexture: Texture,
+  col: number,
+  row: number,
+  targetSize: number,
+  options: WeaponOptionsLike = {}
 ) {
   const src = sourceTexture?.source
   const srcW = Number(src?.width ?? 0)
@@ -3527,7 +3654,7 @@ function createCompositeCharacterContainer (
   return container
 }
 
-function createWeaponSpriteFromStrip (sourceTexture, index, count) {
+function createWeaponSpriteFromStrip (sourceTexture: Texture, index: number, count: number) {
   if (!sourceTexture) return null
   const src = sourceTexture.source?.resource ?? sourceTexture.source
   if (!src) return null
@@ -3551,13 +3678,13 @@ function createWeaponSpriteFromStrip (sourceTexture, index, count) {
 }
 
 function castDistanceToSolid (
-  x0,
-  y0,
-  ux,
-  uy,
-  maxDist,
-  colliders,
-  ignoreEntityId
+  x0: number,
+  y0: number,
+  ux: number,
+  uy: number,
+  maxDist: number,
+  colliders: ColliderLike[],
+  ignoreEntityId: number
 ) {
   let best = maxDist
   for (const c of colliders) {
@@ -3568,7 +3695,7 @@ function castDistanceToSolid (
   return best
 }
 
-function rayAabbFirstHit (ox, oy, dx, dy, left, top, right, bottom) {
+function rayAabbFirstHit (ox: number, oy: number, dx: number, dy: number, left: number, top: number, right: number, bottom: number) {
   const EPS = 1e-6
   let tMin = -Infinity
   let tMax = Infinity
