@@ -1137,17 +1137,28 @@ export class StealthAssassinGame extends BaseSystem {
       if (!state) {
         const minX = Number(iv.get('patrolMinX') ?? tr.x - 80)
         const maxX = Number(iv.get('patrolMaxX') ?? tr.x + 80)
+        const minY = Number(iv.get('patrolMinY') ?? tr.y - 80)
+        const maxY = Number(iv.get('patrolMaxY') ?? tr.y + 80)
+        const patrolType = String(iv.get('patrolType') ?? 'move')
         state = {
           mode: 'patrol',
           targetX: maxX,
+          targetY: maxY,
           minX,
           maxX,
+          minY,
+          maxY,
           baseY: tr.y,
           patrolHomeX: tr.x,
           patrolHomeY: tr.y,
-          patrolType: String(iv.get('patrolType') ?? 'move'),
+          patrolType,
           patrolRotateSpeed: Number(iv.get('patrolRotateSpeed') ?? 0.85),
-          heading: tr.scaleX >= 0 ? 0 : Math.PI,
+          heading:
+            patrolType === 'moveY'
+              ? maxY >= tr.y ? Math.PI / 2 : -Math.PI / 2
+              : tr.scaleX >= 0
+                ? 0
+                : Math.PI,
           fireCooldown: this.guardFireInterval * (0.2 + Math.random() * 0.6),
           searchTimer: 0,
           searchDuration: this.searchDurationMin,
@@ -1161,6 +1172,8 @@ export class StealthAssassinGame extends BaseSystem {
           patrolSubState: 'move',
           patrolWaitTimer: 0,
           patrolScanBase: tr.scaleX >= 0 ? 0 : Math.PI,
+          patrolScanA: tr.scaleX >= 0 ? -0.4 : Math.PI - 0.4,
+          patrolScanB: tr.scaleX >= 0 ? 0.4 : Math.PI + 0.4,
           patrolTurnTarget: tr.scaleX >= 0 ? 0 : Math.PI,
           guardPath: [],
           guardPathIndex: 0,
@@ -1363,12 +1376,25 @@ export class StealthAssassinGame extends BaseSystem {
           tr.scaleX = Math.cos(state.heading) >= 0 ? 1 : -1
           state.lastMoveX = Math.cos(state.heading)
           state.lastMoveY = Math.sin(state.heading)
-        } else {
-          if (state.patrolSubState === 'wait') {
+        } else if (state.patrolType === 'moveY') {
+          if (state.patrolSubState === 'scanA') {
             state.patrolWaitTimer -= dt
-            const elapsed = Math.max(0, this.patrolWaitDuration - state.patrolWaitTimer)
-            state.heading =
-              state.patrolScanBase + Math.sin(elapsed * this.patrolWaitScanSpeed) * 0.45
+            state.heading = smoothAngleStep(
+              state.heading,
+              state.patrolScanA,
+              this.patrolTurnSpeed * dt
+            )
+            if (state.patrolWaitTimer <= 0) {
+              state.patrolSubState = 'scanB'
+              state.patrolWaitTimer = this.patrolWaitDuration * 0.4
+            }
+          } else if (state.patrolSubState === 'scanB') {
+            state.patrolWaitTimer -= dt
+            state.heading = smoothAngleStep(
+              state.heading,
+              state.patrolScanB,
+              this.patrolTurnSpeed * dt
+            )
             if (state.patrolWaitTimer <= 0) {
               state.patrolSubState = 'turn'
             }
@@ -1379,43 +1405,140 @@ export class StealthAssassinGame extends BaseSystem {
               state.heading = state.patrolTurnTarget
               state.patrolSubState = 'move'
             } else {
-              state.heading += Math.sign(diff) * step
+              state.heading = normalizeAngle(state.heading + Math.sign(diff) * step)
+            }
+          } else {
+            if (Math.abs(tr.y - state.targetY) < 8) {
+              const prevTargetY = state.targetY
+              state.targetY = state.targetY === state.maxY ? state.minY : state.maxY
+              const dirPrev = Math.sign(prevTargetY - tr.y) || state.lastMoveY || 1
+              const moveHeading = dirPrev >= 0 ? Math.PI / 2 : -Math.PI / 2
+              state.patrolScanBase = moveHeading
+              state.patrolScanA = normalizeAngle(moveHeading - 0.45)
+              state.patrolScanB = normalizeAngle(moveHeading + 0.45)
+              state.patrolTurnTarget = normalizeAngle(moveHeading + Math.PI)
+              state.patrolWaitTimer = this.patrolWaitDuration * 0.4
+              state.patrolSubState = 'scanA'
+            } else {
+              const speed = Number(iv.get('patrolSpeed') ?? this.defaultPatrolSpeed)
+              const dir = Math.sign(state.targetY - tr.y) || 1
+              const ny = tr.y + dir * speed * dt
+              if (this._canOccupyCircle(tr.x, ny, this.guardRadius, colliders, id)) {
+                tr.y = ny
+                const desiredHeading = dir >= 0 ? Math.PI / 2 : -Math.PI / 2
+                state.heading = smoothAngleStep(
+                  state.heading,
+                  desiredHeading,
+                  this.patrolTurnSpeed * dt
+                )
+                state.lastMoveX = 0
+                state.lastMoveY = dir
+              } else {
+                const dirCurrent = Math.sign(state.targetY - tr.y) || state.lastMoveY || 1
+                state.targetY = state.targetY === state.maxY ? state.minY : state.maxY
+                const moveHeading = dirCurrent >= 0 ? Math.PI / 2 : -Math.PI / 2
+                state.patrolScanBase = moveHeading
+                state.patrolScanA = normalizeAngle(moveHeading - 0.45)
+                state.patrolScanB = normalizeAngle(moveHeading + 0.45)
+                state.patrolTurnTarget = normalizeAngle(moveHeading + Math.PI)
+                state.patrolWaitTimer = this.patrolWaitDuration * 0.4
+                state.patrolSubState = 'scanA'
+              }
+            }
+          }
+        } else {
+          if (state.patrolSubState === 'scanA') {
+            state.patrolWaitTimer -= dt
+            state.heading = smoothAngleStep(
+              state.heading,
+              state.patrolScanA,
+              this.patrolTurnSpeed * dt
+            )
+            if (state.patrolWaitTimer <= 0) {
+              state.patrolSubState = 'scanB'
+              state.patrolWaitTimer = this.patrolWaitDuration * 0.4
+            }
+          } else if (state.patrolSubState === 'scanB') {
+            state.patrolWaitTimer -= dt
+            state.heading = smoothAngleStep(
+              state.heading,
+              state.patrolScanB,
+              this.patrolTurnSpeed * dt
+            )
+            if (state.patrolWaitTimer <= 0) {
+              state.patrolSubState = 'turn'
+            }
+          } else if (state.patrolSubState === 'turn') {
+            const diff = normalizeAngle(state.patrolTurnTarget - state.heading)
+            const step = this.patrolTurnSpeed * dt
+            if (Math.abs(diff) <= step) {
+              state.heading = state.patrolTurnTarget
+              state.patrolSubState = 'move'
+            } else {
+              state.heading = normalizeAngle(state.heading + Math.sign(diff) * step)
             }
           } else {
             if (Math.abs(tr.x - state.targetX) < 8) {
+              const prevTargetX = state.targetX
               state.targetX = state.targetX === state.maxX ? state.minX : state.maxX
-              const dirNext = Math.sign(state.targetX - tr.x) || 1
-              state.patrolTurnTarget = dirNext >= 0 ? 0 : Math.PI
-              state.patrolScanBase = state.heading
-              state.patrolWaitTimer = this.patrolWaitDuration
-              state.patrolSubState = 'wait'
+              const dirPrev = Math.sign(prevTargetX - tr.x) || state.lastMoveX || 1
+              const moveHeading = dirPrev >= 0 ? 0 : Math.PI
+              state.patrolScanBase = moveHeading
+              state.patrolScanA = normalizeAngle(moveHeading - 0.45)
+              state.patrolScanB = normalizeAngle(moveHeading + 0.45)
+              state.patrolTurnTarget = normalizeAngle(moveHeading + Math.PI)
+              state.patrolWaitTimer = this.patrolWaitDuration * 0.4
+              state.patrolSubState = 'scanA'
             } else {
               const speed = Number(iv.get('patrolSpeed') ?? this.defaultPatrolSpeed)
               const dir = Math.sign(state.targetX - tr.x) || 1
               const nx = tr.x + dir * speed * dt
               if (this._canOccupyCircle(nx, tr.y, this.guardRadius, colliders, id)) {
                 tr.x = nx
-                state.heading = dir >= 0 ? 0 : Math.PI
+                const desiredHeading = dir >= 0 ? 0 : Math.PI
+                state.heading = smoothAngleStep(
+                  state.heading,
+                  desiredHeading,
+                  this.patrolTurnSpeed * dt
+                )
                 state.lastMoveX = dir
                 state.lastMoveY = 0
               } else {
+                const dirCurrent = Math.sign(state.targetX - tr.x) || state.lastMoveX || 1
                 state.targetX = state.targetX === state.maxX ? state.minX : state.maxX
-                const dirNext = Math.sign(state.targetX - tr.x) || 1
-                state.patrolTurnTarget = dirNext >= 0 ? 0 : Math.PI
-                state.patrolScanBase = state.heading
-                state.patrolWaitTimer = this.patrolWaitDuration
-                state.patrolSubState = 'wait'
+                const moveHeading = dirCurrent >= 0 ? 0 : Math.PI
+                state.patrolScanBase = moveHeading
+                state.patrolScanA = normalizeAngle(moveHeading - 0.45)
+                state.patrolScanB = normalizeAngle(moveHeading + 0.45)
+                state.patrolTurnTarget = normalizeAngle(moveHeading + Math.PI)
+                state.patrolWaitTimer = this.patrolWaitDuration * 0.4
+                state.patrolSubState = 'scanA'
               }
             }
           }
         }
       }
 
+      const inPatrolMode = state.mode === 'patrol'
+      const inPatrolLookPhase =
+        inPatrolMode &&
+        state.patrolType !== 'rotate' &&
+        state.patrolSubState !== 'move'
+      const inInvestigateLookPhase =
+        state.mode === 'investigateSearch' &&
+        state.investigatePhase === 'pause'
       this._markNearbyDoorsOpenForGuard(tr.x, tr.y, this.guardRadius, colliders)
-      this._resolveCircleWallPenetration(tr, colliders, this.guardRadius, id)
+      if (!inPatrolLookPhase && !inInvestigateLookPhase) {
+        this._resolveCircleWallPenetration(tr, colliders, this.guardRadius, id)
+      }
       const movedDist = Math.hypot(tr.x - prevX, tr.y - prevY)
+      // Keep anti-stuck logic out of look/scan phases where guards should rotate in place.
       const trackStuck =
-        state.mode !== 'shoot' && !(state.mode === 'patrol' && state.patrolType === 'rotate')
+        state.mode === 'chase' ||
+        state.mode === 'search' ||
+        state.mode === 'return' ||
+        state.mode === 'investigateMove' ||
+        (state.mode === 'investigateSearch' && state.investigatePhase !== 'pause')
       if (trackStuck && movedDist < 0.35) {
         state.stuckTimer = (state.stuckTimer || 0) + dt
       } else {
@@ -1567,7 +1690,7 @@ export class StealthAssassinGame extends BaseSystem {
       if (!s) continue
       s.mode = 'investigateMove'
       s.searchTimer = this.killInvestigateDuration
-      s.heading = Math.atan2(y - tr.y, x - tr.x)
+      // Keep current facing; investigate movement will rotate smoothly before advancing.
       s.investigateTargetX = x
       s.investigateTargetY = y
       s.investigateCenterX = x
@@ -1619,12 +1742,24 @@ export class StealthAssassinGame extends BaseSystem {
     }
     const ux = dx / Math.max(d, 1e-6)
     const uy = dy / Math.max(d, 1e-6)
+    const desiredHeading = Math.atan2(uy, ux)
+    const isInvestigatePathing =
+      state.mode === 'investigateMove' ||
+      (state.mode === 'investigateSearch' && state.investigatePhase === 'walk')
+    const turnStep = (isInvestigatePathing ? this.enemyTurnSmoothSpeed : this.patrolTurnSpeed) * dt
+    state.heading = smoothAngleStep(state.heading, desiredHeading, turnStep)
+    const turnRemaining = Math.abs(normalizeAngle(desiredHeading - state.heading))
+    // During investigate movement, fully rotate first, then move.
+    if (isInvestigatePathing && turnRemaining > 0.18) {
+      state.lastMoveX = 0
+      state.lastMoveY = 0
+      return false
+    }
     const nx = tr.x + ux * step
     const ny = tr.y + uy * step
     if (this._canOccupyCircle(nx, ny, this.guardRadius, colliders, id)) {
       tr.x = nx
       tr.y = ny
-      state.heading = Math.atan2(uy, ux)
       state.lastMoveX = ux
       state.lastMoveY = uy
       return false
@@ -3162,7 +3297,13 @@ export class StealthAssassinGame extends BaseSystem {
       },
       { id: 'player' }
     )
+    const patrolSpan = Math.max(96, layout.roomSize * 0.42)
+    let guardIndex = 0
     for (const g of layout.guards) {
+      const pattern = guardIndex % 3
+      const isRotate = pattern === 0
+      const isVertical = pattern === 2
+      const patrolType = isRotate ? 'rotate' : isVertical ? 'moveY' : 'move'
       this._spawnFromType(
         world,
         'guardAgent',
@@ -3175,13 +3316,19 @@ export class StealthAssassinGame extends BaseSystem {
         },
         {
           instanceVariables: {
-            patrolType: 'rotate',
+            patrolType,
             patrolRotateSpeed: 0.6 + Math.random() * 0.6,
+            patrolMinX: g.x - patrolSpan,
+            patrolMaxX: g.x + patrolSpan,
+            patrolMinY: g.y - patrolSpan,
+            patrolMaxY: g.y + patrolSpan,
+            patrolSpeed: 64 + Math.random() * 24,
             visionRange: 230 + Math.floor(Math.random() * 70),
             fovDeg: 65 + Math.floor(Math.random() * 25)
           }
         }
       )
+      guardIndex += 1
     }
   }
 
