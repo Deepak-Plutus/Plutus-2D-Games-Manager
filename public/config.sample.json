@@ -10,6 +10,7 @@
     "behavior": { "enabled": true },
     "physics": { "enabled": false }
   },
+  "systemsOrder": ["behavior", "physics", "displaySync"],
   "input": {
     "actions": {
       "jump": ["Space", "KeyW", "ArrowUp"],

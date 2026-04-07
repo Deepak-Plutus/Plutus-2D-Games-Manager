@@ -5,6 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "typecheck": "tsc --noEmit",
+    "generate:schema": "node scripts/generate-config-schema.mjs",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -14,6 +16,9 @@
     "pixi.js": "^8.6.6"
   },
   "devDependencies": {
+    "@types/matter-js": "^0.20.2",
+    "ts-json-schema-generator": "^2.9.0",
+    "typescript": "^5.9.3",
     "vite": "^6.2.0"
   }
 }

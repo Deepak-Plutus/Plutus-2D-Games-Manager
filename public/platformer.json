@@ -19,6 +19,7 @@
       "winMessage": "YOU WIN"
     }
   },
+  "systemsOrder": ["behavior", "physics", "displaySync", "platformerGame"],
   "platformerGame": {
     "hurtCooldown": 1.2,
     "winCoinTarget": 0
@@ -88,7 +89,8 @@
           "type": "platform",
           "defaultControls": true,
           "maxSpeed": 260,
-          "jumpStrength": 560,
+          "jumpStrength": 420,
+          "jumpSustain": 120,
           "gravity": 1650,
           "maxFallSpeed": 980,
           "useLayoutFloor": false,
@@ -114,7 +116,7 @@
           "patrolSpeed": 68,
           "chaseSpeed": 118,
           "patrolMinX": 0,
-          "patrolMaxX": 200,
+          "patrolMaxX": 320,
           "gravity": 1700,
           "maxFallSpeed": 980
         }
@@ -133,7 +135,7 @@
           "mode": "fly",
           "patrolSpeed": 50,
           "chaseSpeed": 135,
-          "ampX": 88,
+          "ampX": 150,
           "patrolPeriod": 4.2
         }
       ]
@@ -230,23 +232,23 @@
     {
       "id": "walkerA",
       "type": "enemyWalker",
-      "transform": { "x": 560, "y": 520, "rotation": 0, "scaleX": 1, "scaleY": 1 },
-      "behaviors": [{ "type": "patrolChase", "mode": "ground", "patrolMinX": 200, "patrolMaxX": 700, "patrolSpeed": 64, "chaseSpeed": 118, "gravity": 1700, "maxFallSpeed": 980 }]
+      "transform": { "x": 360, "y": 520, "rotation": 0, "scaleX": 1, "scaleY": 1 },
+      "behaviors": [{ "type": "patrolChase", "mode": "ground", "patrolMinX": 120, "patrolMaxX": 820, "patrolSpeed": 64, "chaseSpeed": 118, "gravity": 1700, "maxFallSpeed": 980 }]
     },
     {
       "id": "walkerB",
       "type": "enemyWalker",
-      "transform": { "x": 1260, "y": 520, "rotation": 0, "scaleX": 1, "scaleY": 1 },
-      "behaviors": [{ "type": "patrolChase", "mode": "ground", "patrolMinX": 980, "patrolMaxX": 1480, "patrolSpeed": 66, "chaseSpeed": 118, "gravity": 1700, "maxFallSpeed": 980 }]
+      "transform": { "x": 1860, "y": 520, "rotation": 0, "scaleX": 1, "scaleY": 1 },
+      "behaviors": [{ "type": "patrolChase", "mode": "ground", "patrolMinX": 1320, "patrolMaxX": 1980, "patrolSpeed": 76, "chaseSpeed": 118, "gravity": 1700, "maxFallSpeed": 980 }]
     },
     {
       "id": "walkerC",
       "type": "enemyWalker",
-      "transform": { "x": 2280, "y": 520, "rotation": 0, "scaleX": 1, "scaleY": 1 },
-      "behaviors": [{ "type": "patrolChase", "mode": "ground", "patrolMinX": 2000, "patrolMaxX": 2700, "patrolSpeed": 68, "chaseSpeed": 120, "gravity": 1700, "maxFallSpeed": 980 }]
+      "transform": { "x": 2800, "y": 520, "rotation": 0, "scaleX": 1, "scaleY": 1 },
+      "behaviors": [{ "type": "patrolChase", "mode": "ground", "patrolMinX": 1840, "patrolMaxX": 2860, "patrolSpeed": 68, "chaseSpeed": 120, "gravity": 1700, "maxFallSpeed": 980 }]
     },
 
-    { "id": "goal", "type": "goalFlag", "transform": { "x": 3460, "y": 420, "rotation": 0, "scaleX": 12, "scaleY": 300 } },
+    { "id": "goal", "type": "goalFlag", "transform": { "x": 3460, "y": 340, "rotation": 0, "scaleX": 12, "scaleY": 460 } },
     { "id": "castleBase", "type": "castleBlock", "layer": "Background", "transform": { "x": 3580, "y": 500, "rotation": 0, "scaleX": 150, "scaleY": 160 } },
     { "id": "castleTowerL", "type": "castleBlock", "layer": "Background", "transform": { "x": 3520, "y": 450, "rotation": 0, "scaleX": 42, "scaleY": 220 } },
     { "id": "castleTowerR", "type": "castleBlock", "layer": "Background", "transform": { "x": 3640, "y": 450, "rotation": 0, "scaleX": 42, "scaleY": 220 } },

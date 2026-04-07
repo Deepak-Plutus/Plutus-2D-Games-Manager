@@ -12,6 +12,7 @@
     "physics": { "enabled": false },
     "flappyBird": { "enabled": true }
   },
+  "systemsOrder": ["behavior", "physics", "displaySync", "flappyBird"],
   "flappyBird": {
     "birdAssetId": "birdSprite",
     "pipeSpeed": 205,

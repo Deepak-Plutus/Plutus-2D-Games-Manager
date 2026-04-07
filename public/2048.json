@@ -13,6 +13,7 @@
     "platformerGame": { "enabled": false },
     "game2048": { "enabled": true }
   },
+  "systemsOrder": ["behavior", "physics", "displaySync", "game2048"],
   "game2048": {
     "cellSize": 72,
     "gap": 8,

@@ -1,270 +1,268 @@
 # Plutus 2D Games Manager - Engine Documentation
 
-This document gives a single, practical overview of the engine: what it does, how to build games with it, how JSON is used and generated, behavior support, ECS architecture, animations, scalability, and the technology stack.
+This document reflects the current engine architecture, why each part exists, and how to use it in day-to-day game authoring.
 
-## 1) Engine Overview
+## Engine Summary
 
-Plutus 2D Games Manager is a JSON-driven 2D game runtime built around:
+Plutus 2D is a JSON-driven ECS runtime for 2D games built on:
 
-- `PixiJS` for rendering and scene graph handling.
-- `Matter.js` integration points for physics-style systems.
-- `GSAP` for tween and timeline-style visual animation behavior.
-- A lightweight `ECS` (Entity Component System) core.
-- A behavior plugin model inspired by Construct-style workflows.
+- `PixiJS` for rendering and display hierarchy
+- `GSAP` for tween-based animation and transitions
+- `Matter.js` integration points for physics-style workflows
+- Typed TypeScript config contracts for safer AI/manual authoring
 
-The engine loads one JSON configuration, initializes the app, loads assets, creates entities/components/behaviors, and runs game systems every frame.
+Core idea: game content is data (`public/*.json`), engine behavior is modular (`systems`, `components`, `behaviors`, `games`), and bootstrap is extensible.
 
-## 2) What The Engine Does
+## Runtime Flow
 
-At runtime, the engine:
+At startup, `GameManager` performs:
 
-1. Creates a Pixi application and canvas host.
-2. Resolves a config URL (usually from `?config=...` query parameter).
-3. Fetches and validates JSON.
-4. Applies app settings (width/height/background).
-5. Loads assets and tracks progress.
-6. Registers and configures systems from JSON.
-7. Spawns entities from JSON into ECS world state.
-8. Attaches behaviors to entities from JSON.
-9. Runs update loop (`ticker`) with enabled systems.
+1. Initialize app host + scene layers
+2. Resolve config URL (`?config=...`) and fetch JSON
+3. Parse and validate top-level config shape
+4. Resolve system factories (core + game systems)
+5. Apply app/input/system config
+6. Load assets
+7. Spawn entities/components/behaviors
+8. Bootstrap game systems
+9. Enter ticker loop (`update(dt)`)
 
-This makes game logic data-driven and easy to iterate without changing core runtime code for every gameplay change.
+This is why config structure consistency matters: the runtime path is fully data-driven.
 
-## 3) How To Create Games
+## Current Architecture (And Why)
 
-Create a game by preparing one JSON config file and opening the runtime with that config URL.
+### Typed Config Contract
 
-High-level flow:
+- `src/Core/GameConfig.ts`
+- `src/Core/ConfigValidation.ts`
 
-1. Define app settings.
-2. Add asset registry entries.
-3. Enable required systems.
-4. Define entities with transform/sprite/components.
-5. Attach behavior list for each entity.
-6. Run with `npm run dev` and pass config URL.
+Why:
+- Prevent brittle config evolution
+- Make AI output predictable
+- Catch malformed top-level config early
 
-Example:
+Use case:
+- AI generation, tooling validation, and safer refactors.
 
-- Local dev URL: `http://localhost:3000/?config=/config.sample.json`
+### JSON Schema Generation
 
-You can also host JSON remotely if CORS allows browser fetches.
+- Source type: `GameConfigSchema` in `src/Core/GameConfig.ts`
+- Generator: `scripts/generate-config-schema.mjs`
+- Output: `docs/schemas/game-config.schema.json`
 
-## 4) JSON Usage In The Engine
+Why:
+- External tools can validate configs without running engine
+- AI pipelines can validate before runtime
 
-JSON is the game source of truth for:
+Use case:
+- CI checks, prompt pipelines, editor integration.
 
-- Engine/app setup (`app`).
-- Runtime system toggles/config (`systems`).
-- Asset declarations (`assets`).
-- Game object declarations (`entities`).
-- Behavior attachment and behavior properties (`entities[].behaviors[]`).
-- Optional game-specific top-level blocks (for registered game systems).
+### System Factory Registry
 
-This allows:
+- `src/bootstrap/SystemFactoryRegistry.ts`
+- Game registration: `src/games/registerGameSystems.ts`
 
-- Fast balancing/tuning.
-- Reusable templates.
-- Procedural or tool-generated content.
-- Easy versioning of game content files.
+Supports:
+- `phase` ordering
+- `after` dependencies
+- config-driven enable checks
+- explicit JSON ordering via `systemsOrder`
 
-## 5) JSON Format (Core Structure)
+Why:
+- Deterministic execution order across many game modes
+- Easier future plugin/add-on systems
+
+Use case:
+- Add new game system with clear dependencies instead of ad-hoc ordering logic.
+
+### Component Parser Registry
+
+- `src/bootstrap/ComponentParserRegistry.ts`
+- default parsers: `src/bootstrap/componentParsers.ts`
+- consumed by: `src/Entities/EntityBuilder.ts`
+
+Why:
+- Keeps entity build pipeline extensible
+- Allows adding new component families without bloating `EntityBuilder`
+
+Use case:
+- Add parser for a new authored block (e.g. custom fx component) cleanly.
+
+### Bootstrap Contributions
+
+- `src/bootstrap/BootstrapContributionRegistry.ts`
+
+Stages:
+- `beforeEntities`
+- `afterEntities`
+- `afterSystemsReady`
+
+Why:
+- Plugin-style extension points around bootstrap lifecycle
+- Avoid deep edits in `GameManager` for every new initialization step
+
+Use case:
+- Register game/editor/debug setup hooks at specific lifecycle stages.
+
+## Standard Game Config Shape
+
+Recommended top-level order for all game JSONs:
+
+1. `broadcastChannel` (optional)
+2. `app`
+3. `systems`
+4. `systemsOrder`
+5. `input`
+6. `layers`
+7. `objectTypes`
+8. `assets`
+9. `entities`
+10. optional game-specific block (`platformerGame`, `game2048`, etc.)
+
+Minimum practical starter:
 
 ```json
 {
-  "app": {
-    "width": 1280,
-    "height": 720,
-    "background": "#1a1a2e"
-  },
+  "app": { "width": "fullscreen", "height": "fullscreen", "background": "#101828" },
   "systems": {
-    "displaySync": { "enabled": true },
     "behavior": { "enabled": true },
-    "physics": {
-      "enabled": false,
-      "gravity": { "x": 0, "y": 1 }
-    }
+    "displaySync": { "enabled": true },
+    "physics": { "enabled": false }
   },
-  "assets": [
-    {
-      "id": "playerSprite",
-      "url": "/sprites/player.png",
-      "type": "image",
-      "width": 64,
-      "height": 64
-    }
-  ],
-  "entities": [
-    {
-      "id": "player",
-      "transform": {
-        "x": 200,
-        "y": 200,
-        "rotation": 0,
-        "scaleX": 1,
-        "scaleY": 1
-      },
-      "sprite": { "assetId": "playerSprite" },
-      "behaviors": [
-        { "type": "platform", "defaultControls": true },
-        { "type": "boundToLayout", "boundBy": "edge" }
-      ]
-    }
-  ]
+  "systemsOrder": ["behavior", "physics", "displaySync"],
+  "layers": [{ "name": "Main", "zIndex": 100 }],
+  "assets": [],
+  "objectTypes": [],
+  "entities": []
 }
 ```
 
-### Core JSON Rules
+## Config Rules To Follow
 
-- `assets[].id` must be unique and referenced by entity sprite configs.
-- `entities[].id` should be unique for easier targeting.
-- `behaviors[]` entries must use valid registered behavior `type`.
-- System blocks should include `enabled` where relevant.
+- `assets[].id`, `objectTypes[].id`, `entities[].id` should be unique and stable
+- `behaviors[]` entries must include `type`
+- keep `systems` explicit (`enabled` flags)
+- set `systemsOrder` explicitly for deterministic updates
+- prefer reusable `objectTypes` and short entity instances
+- avoid unknown top-level keys unless engine code consumes them
 
-## 6) Systems (Built-in Runtime Systems)
+## AI Authoring Files
 
-- `displaySync`: writes ECS transform data into Pixi display objects.
-- `behavior`: updates behavior instances each frame.
-- `physics`: engine integration point for physics updates.
+- Base template: `ai-friendly-base-config.ts`
+- AI guide: `docs/AI_CONFIG_GUIDE.md`
+- Schema: `docs/schemas/game-config.schema.json`
 
-Game-layer systems are also supported (for example platformer, flappy, 2048 style modules) and can be selected by JSON config.
+Purpose:
+- Gives AI a consistent scaffold
+- Reduces “invented shape” errors
+- Keeps generated configs aligned with runtime expectations
 
-## 7) ECS System Brief
+## Systems, Components, Behaviors (Quick Use Cases)
 
-The engine follows ECS principles:
+- Systems: frame logic (`behavior`, `displaySync`, `physics`, plus game systems)
+- Components: data (`transform`, `sprite`, `collision`, `instanceVariables`, etc.)
+- Behaviors: reusable per-entity logic (`platform`, `patrolChase`, `sine`, `tween`, etc.)
 
-- **Entity**: lightweight ID.
-- **Component**: pure data attached to entity (transform, display, meta, group, etc.).
-- **System**: logic that iterates entities with required component sets.
+Typical mapping:
+- platformers: `platform`, `solid`, `jumpThru`, `patrolChase`
+- top-down/stealth: `eightDirection`, `pathfinding`, `lineOfSight`
+- puzzle/grids: `tileMovement`, game-specific system orchestration
 
-Benefits:
+## Behavior Brief + Use Cases
 
-- Better separation of data and logic.
-- Easy feature composition.
-- Better scalability than monolithic object inheritance.
-- Cleaner runtime querying (`world.query(...)` patterns).
+| Behavior | What it does | Common use cases |
+|---|---|---|
+| `solid` | Adds solid collision contribution. | Walls, floors, blockers. |
+| `jumpThru` | One-way platform collision. | Platform floors you can jump through from below. |
+| `platform` | Side-view movement with jump/gravity. | Player in platformer levels. |
+| `eightDirection` | Free directional movement. | Top-down player/NPC movement. |
+| `car` | Car-like steer/acceleration handling. | Driving gameplay. |
+| `moveTo` | Moves toward target position. | Click-to-move actors, scripted movement. |
+| `follow` | Follows another entity/path history. | Companions, snake-tail logic. |
+| `pathfinding` | Computes route around blockers. | Enemy navigation in mazes/stealth maps. |
+| `patrolChase` | Patrols and chases based on conditions. | Guard and enemy AI loops. |
+| `lineOfSight` | Visibility checks with blockers. | Detection cones and stealth logic. |
+| `bullet` | Projectile stepping/collision checks. | Shooter bullets and hitscan-like movement. |
+| `turret` | Periodic targeting and firing behavior. | Automated defense units. |
+| `physics` | Per-entity motion/collision resolution. | Dynamic actors with collision constraints. |
+| `tileMovement` | Grid-locked movement steps. | Grid puzzle/roguelike movement. |
+| `orbit` | Circular movement around center/target. | Orbiting enemies/effects. |
+| `sine` | Oscillatory movement/size animation. | Floating pickups, idle enemy motion. |
+| `rotate` | Constant angular rotation. | Spinning hazards/props. |
+| `tween` | Property interpolation over time. | Smooth scripted transforms/fades. |
+| `fade` | Alpha fade in/out behavior. | Spawn/despawn effects. |
+| `flash` | Temporary blink/tint feedback. | Damage feedback and alerts. |
+| `timer` | Delay/interval-driven callbacks. | Cooldowns and scheduled triggers. |
+| `dragDrop` | Pointer drag/drop interaction. | Puzzle UI and editor-like interactions. |
+| `pin` | Attaches transform to another entity. | Weapon-to-player, marker-to-target linkage. |
+| `scrollTo` | Requests camera focus/scroll changes. | Camera follow/pan effects. |
+| `boundToLayout` | Clamps entity to layout bounds. | Keep actors inside game area. |
+| `wrap` | Wraps to opposite side of layout. | Asteroids-like looping maps. |
+| `destroyOutside` | Auto-destroys off-layout entities. | Projectile/particle cleanup. |
+| `persist` | Marks entity for persistence intent. | Manager-like entities across flows. |
 
-## 8) Behaviors (Brief + Use Cases)
+Practical rule: use behavior composition first; add/extend a game system only when orchestration across many entities is required.
 
-Below is a concise guide for each built-in behavior, with where it is useful and example game types.
+## Animations Brief
 
-| Behavior | Brief | Best use case | Example games |
-|---|---|---|---|
-| `solid` | Blocks movement as a solid collider. | Ground, walls, static blockers. | Platformer, puzzle, top-down action |
-| `jumpThru` | One-way platform collider. | Platforms you jump up through and land on. | Platformer, metroidvania |
-| `platform` | Side-view run/jump movement. | Player control in gravity platform levels. | Platformer, endless runner |
-| `eightDirection` | Free 8-axis directional movement. | Top-down player or enemy movement. | Zelda-like, twin-stick shooter |
-| `car` | Car-like acceleration and turning. | Vehicle controls and racing feel. | Racing, driving missions |
-| `moveTo` | Moves to target point smoothly. | Click-to-move or scripted movement. | RTS-lite, action RPG |
-| `follow` | Follows another target/entity. | Companion AI, enemy tailing, camera target. | RPG, chase games |
-| `pathfinding` | Navigates around obstacles. | Enemy AI route planning. | Stealth, tactics, maze games |
-| `patrolChase` | Patrols until target is detected, then chases. | Guard/NPC behavior logic. | Stealth, survival |
-| `lineOfSight` | Checks whether target is visible. | Detection cones and spotting systems. | Stealth, guard AI |
-| `bullet` | Projectile movement and hit flow. | Shots, missiles, fast moving hazards. | Shooter, tower defense |
-| `turret` | Auto target/aim/fire style logic. | Stationary or rotating defense units. | Tower defense, arena shooter |
-| `physics` | Per-entity physics style behavior. | Physical responses, dynamic movement. | Physics platformer, sandbox |
-| `tileMovement` | Grid/tile step-based movement. | Turn/grid movement on tile maps. | Puzzle, roguelike, tactics |
-| `orbit` | Circular motion around a center/target. | Satellites, rotating hazards, rings. | Boss fights, arcade |
-| `sine` | Sinusoidal oscillation movement. | Floating collectibles, enemy bobbing. | Arcade, platformer |
-| `rotate` | Constant angular rotation. | Spinners, rotating blades, FX props. | Arcade, obstacle games |
-| `tween` | Time-based value interpolation. | Smooth transitions, scripted motion. | UI-heavy games, cutscenes |
-| `fade` | Fades object in/out over time. | Spawn/despawn visuals, ghosting effects. | Puzzle, narrative transitions |
-| `flash` | Quick blink/tint flash effect. | Damage feedback, alert highlighting. | Combat games, arcade |
-| `timer` | Triggers actions after delay/interval. | Cooldowns, delayed events, loops. | Any game genre |
-| `dragDrop` | Pointer drag and drop interaction. | Card/item placement, editor interactions. | Card games, puzzle, level editor |
-| `pin` | Pins object to another object. | Attach weapons, UI markers, effects. | Shooter, RPG, HUD-heavy games |
-| `scrollTo` | Scrolls/focuses camera toward target. | Camera follow and cinematic pans. | Platformer, adventure |
-| `boundToLayout` | Keeps entity inside layout bounds. | Prevent leaving visible play area. | Platformer, shooter, mobile arcade |
-| `wrap` | Wraps entity to opposite edge. | Infinite looping world edges. | Asteroids-like, arcade |
-| `destroyOutside` | Removes entity outside margins. | Cleanup for bullets/enemies/particles. | Shooter, endless runner |
-| `persist` | Preserves entity/state across transitions. | Keep player/global managers alive. | Multi-level games, RPG |
+Animation in this engine is usually done in three layers:
 
-## 9) Animations
+- **Behavior animation**  
+  Use `sine`, `rotate`, `fade`, `flash`, `tween` for per-entity motion/visual transitions.
 
-Animation in this engine can be achieved via:
+- **System/game animation**  
+  Use game system logic for sequence-level animations (for example 2048 slide/merge flow, stealth UI transitions, game-over panels).
 
-- Behavior-driven animation (`rotate`, `sine`, `fade`, `flash`, `tween`).
-- Frame-update logic through systems.
-- Pixi transform/sprite updates.
-- GSAP-backed tweens for richer easing/timelines.
+- **GSAP-driven interpolation**  
+  For timed movement, easing, and chained effects where raw frame math would be verbose.
 
-This enables both simple arcade motion and cinematic transitions.
+Common guidance:
+- Use behavior-level animation for reusable patterns.
+- Use GSAP for short, polished transitions.
+- Keep transforms pixel-snapped where needed (e.g. grid/tile games) to avoid visual jitter/artifacts.
 
-## 10) Possibilities Of Games That Can Be Built
+## Package Scripts (Brief)
 
-The architecture supports many genres, including:
+From `package.json`:
 
-- Platformers and runner games.
-- Top-down shooters and survival games.
-- Puzzle games (grid/tile based, e.g. 2048-like logic).
-- Flappy/bird-style endless games.
-- Tower-defense/turret-based mechanics.
-- AI patrol/chase stealth prototypes.
-- Physics-driven action mini-games.
+- `npm run dev`  
+  Starts Vite dev server.
 
-Because systems and behaviors are modular, mixed-genre experiments are also possible.
+- `npm run typecheck`  
+  Runs strict TS checks (`tsc --noEmit`).
 
-## 11) JSON Generation
+- `npm run generate:schema`  
+  Generates `docs/schemas/game-config.schema.json` from `src/Core/GameConfig.ts`.
 
-JSON can be created manually or generated by external tools/editors/pipelines.
+- `npm run build`  
+  Produces production build via Vite.
 
-Recommended generation workflow:
+- `npm run preview`  
+  Serves built output locally.
 
-1. Maintain a schema-like template for required keys.
-2. Generate deterministic IDs (`asset id`, `entity id`).
-3. Validate behavior `type` names before export.
-4. Run lightweight JSON validation before runtime load.
-5. Store generated files in version control for reproducibility.
+Recommended workflow:
+- author/update config
+- run `npm run generate:schema` when config types change
+- run `npm run typecheck`
+- run `npm run dev` and test with target `?config=...`
 
-Good generator output should be human-readable and stable across exports to make diffs clean.
+## Folder Guide
 
-## 12) Extending And Scalability
+- `src/Core` - startup/runtime orchestration (`GameManager`, config, input, assets)
+- `src/ECS` - world storage + querying
+- `src/Components` - component data models
+- `src/Behaviors` - reusable behavior modules + defaults
+- `src/Systems` - core update systems
+- `src/Entities` - entity spawn/build pipeline
+- `src/bootstrap` - system/parser/contribution registries
+- `src/games` - game-mode systems (Platformer, 2048, Flappy, Stealth)
+- `public` - game JSONs and static assets
+- `docs` - guides and schema
 
-### Extending
+## Practical Notes
 
-- Add new components under `src/Components`.
-- Add new systems under `src/Systems` or `src/games`, then register in game system registry.
-- Add new behaviors in `src/Behaviors`, then register in behavior bootstrap.
-- Add new asset pipelines by extending loader/registry flow.
+- Current architecture is intentionally backward-compatible with existing game JSONs.
+- Standardized JSON (especially `systemsOrder`) improves reproducibility.
+- If visuals disappear after refactors, verify entity parse/build order first (components before display creation).
 
-### Scalability
-
-- JSON-driven content lets teams add content without touching core loop.
-- ECS queries keep update logic focused and modular.
-- Behavior composition avoids deep class inheritance.
-- Game-specific systems can remain isolated from core engine internals.
-- Tooling can auto-generate large content packs (levels, waves, object sets).
-
-## 13) Folder Structure (Project-Level)
-
-Typical structure:
-
-- `src/Core`: app host, config loading, asset loading, game manager.
-- `src/ECS`: world/entity-component storage/query logic.
-- `src/Systems`: frame update systems.
-- `src/Components`: reusable component data definitions.
-- `src/Entities`: entity builders/spawners.
-- `src/Behaviors`: behavior classes, registry, config defaults.
-- `src/games`: game-mode specific systems/modules.
-- `public`: static files and local JSON configs/assets.
-- `docs`: project documentation (this file).
-
-## 14) Tech Stack Brief
-
-- `PixiJS`: high-performance WebGL/canvas 2D rendering and display graph.
-- `Matter.js`: 2D physics engine integration path for physical simulation.
-- `GSAP`: tweening and timeline-based motion/easing.
-- `Vite`: fast development server and modern frontend build tooling.
-- `JavaScript (ES modules)`: runtime and engine implementation language.
-
-## 15) Game Development Notes
-
-Recommended iterative workflow:
-
-1. Start with minimal JSON and one player entity.
-2. Add systems and one behavior at a time.
-3. Keep assets IDs consistent and descriptive.
-4. Use small reusable behavior presets.
-5. Add game-specific system modules only when behavior composition is not enough.
-6. Keep one sample config per game mode for testing and onboarding.
-
-This helps maintain fast iteration and predictable runtime behavior.
+This structure is designed for both manual game development and AI-assisted generation at scale.

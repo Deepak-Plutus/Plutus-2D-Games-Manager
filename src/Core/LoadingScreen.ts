@@ -1,0 +1,89 @@
+import { Container, Graphics, Text } from 'pixi.js'
+
+export class LoadingScreen extends Container {
+  private _w: number
+  private _h: number
+  private _bg: Graphics
+  private _label: Text
+  private _percent: Text
+
+  constructor (width: number, height: number) {
+    super()
+    this.eventMode = 'none'
+    this.zIndex = 100000
+    this._w = width
+    this._h = height
+    this._bg = new Graphics()
+    this.addChild(this._bg)
+    this._label = new Text({
+      text: 'Loading...',
+      style: {
+        fill: 0xffffff,
+        fontSize: 22,
+        fontFamily: '"Bungee", system-ui, Segoe UI, sans-serif',
+        align: 'center'
+      }
+    })
+    this._label.anchor.set(0.5)
+    this.addChild(this._label)
+    this._percent = new Text({
+      text: '0%',
+      style: {
+        fill: 0xaaaaaa,
+        fontSize: 16,
+        fontFamily: '"Bungee", system-ui, Segoe UI, sans-serif',
+        align: 'center'
+      }
+    })
+    this._percent.anchor.set(0.5)
+    this.addChild(this._percent)
+    this.redraw()
+  }
+
+  resize (width: number, height: number): void {
+    this._w = width
+    this._h = height
+    this.redraw()
+  }
+
+  redraw (): void {
+    const w = this._w
+    const h = this._h
+    const minSide = Math.max(1, Math.min(w, h))
+    const labelSize = Math.max(16, Math.min(34, Math.floor(minSide * 0.055)))
+    const percentSize = Math.max(12, Math.min(22, Math.floor(minSide * 0.04)))
+    const lineGap = Math.max(12, Math.floor(minSide * 0.028))
+    this._bg.clear()
+    this._bg.rect(0, 0, w, h)
+    this._bg.fill({ color: 0x000000, alpha: 1 })
+    this._label.style.fontSize = labelSize
+    this._label.style.wordWrap = true
+    this._label.style.wordWrapWidth = Math.max(220, w - 48)
+    this._percent.style.fontSize = percentSize
+    this._percent.style.wordWrap = true
+    this._percent.style.wordWrapWidth = Math.max(220, w - 48)
+    this._label.position.set(Math.round(w / 2), Math.round(h / 2 - lineGap))
+    this._percent.position.set(Math.round(w / 2), Math.round(h / 2 + lineGap))
+  }
+
+  setProgress (percent: number, status?: string): void {
+    const p = Math.max(0, Math.min(100, Math.round(percent)))
+    this._label.text = status != null ? status : 'Loading...'
+    this._percent.text = `${p}%`
+  }
+
+  showError (message: string): void {
+    this._label.text = 'Error'
+    this._label.style.fill = 0xff6b6b
+    this._percent.text = String(message).slice(0, 200)
+    this._percent.style.fill = 0xffaaaa
+    this._percent.style.wordWrap = true
+    this._percent.style.wordWrapWidth = this._w - 40
+  }
+
+  hide (): void {
+    this.visible = false
+    this.parent?.removeChild(this)
+    this.destroy({ children: true })
+  }
+}

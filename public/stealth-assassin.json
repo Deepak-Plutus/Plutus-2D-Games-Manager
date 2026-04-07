@@ -41,6 +41,7 @@
       "doorOpenDuration": 1.2
     }
   },
+  "systemsOrder": ["behavior", "physics", "displaySync", "stealthAssassin"],
   "input": {
     "actions": {},
     "wheel": { "enabled": false },
